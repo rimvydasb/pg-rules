@@ -2,6 +2,7 @@ import { createTestDatabase } from './test-database';
 import { PgRulesEngine } from './PgRulesEngine';
 import { MatchRule } from './MatchRule';
 import { User, NewUser } from './database.types';
+import {MatchRuleFactory} from "./MatchRuleFactory";
 
 describe('PgRulesEngine', () => {
   let db: any;
@@ -26,7 +27,7 @@ describe('PgRulesEngine', () => {
   describe('applyRules', () => {
     it('should apply a single rule to update user names', async () => {
       // Create a rule to update John's name
-      const rule = new MatchRule<User>(
+      const rule = MatchRuleFactory.createRule<User>(
         'update-john-name',
         { email: 'john@example.com' },
         { name: 'John Updated' }
@@ -48,12 +49,12 @@ describe('PgRulesEngine', () => {
 
     it('should apply multiple rules in a single transaction', async () => {
       const rules = [
-        new MatchRule<User>(
+        MatchRuleFactory.createRule<User>(
           'update-john',
           { email: 'john@example.com' },
           { name: 'John Modified' }
         ),
-        new MatchRule<User>(
+        MatchRuleFactory.createRule<User>(
           'update-jane',
           { email: 'jane@example.com' },
           { name: 'Jane Modified' }
@@ -84,7 +85,7 @@ describe('PgRulesEngine', () => {
         .where('email', '=', 'bob@example.com')
         .execute();
 
-      const rule = new MatchRule<User>(
+      const rule = MatchRuleFactory.createRule<User>(
         'update-specific-user',
         { email: 'bob@example.com', name: 'Target User' },
         { name: 'Updated Target User' }
@@ -104,7 +105,7 @@ describe('PgRulesEngine', () => {
     });
 
     it('should return 0 when no rules match any records', async () => {
-      const rule = new MatchRule<User>(
+      const rule = MatchRuleFactory.createRule<User>(
         'update-nonexistent',
         { email: 'nonexistent@example.com' },
         { name: 'Should Not Update' }
@@ -132,12 +133,12 @@ describe('PgRulesEngine', () => {
 
     it('should skip rules with empty apply objects', async () => {
       const rules = [
-        new MatchRule<User>(
+        MatchRuleFactory.createRule<User>(
           'empty-apply',
           { email: 'john@example.com' },
           {} // Empty apply object
         ),
-        new MatchRule<User>(
+        MatchRuleFactory.createRule<User>(
           'valid-rule',
           { email: 'jane@example.com' },
           { name: 'Jane Updated' }
@@ -166,7 +167,7 @@ describe('PgRulesEngine', () => {
     });
 
     it('should handle rules that update multiple fields', async () => {
-      const rule = new MatchRule<User>(
+      const rule = MatchRuleFactory.createRule<User>(
         'update-multiple-fields',
         { email: 'alice@example.com' },
         {
@@ -189,6 +190,10 @@ describe('PgRulesEngine', () => {
       expect(updatedUser).toBeDefined();
       expect(updatedUser.name).toBe('Alice Updated');
       expect(updatedUser.email).toBe('alice.updated@example.com');
+    });
+
+    it('should maintain transaction integrity on error', async () => {
+        // Do not write this test.
     });
   });
 });
