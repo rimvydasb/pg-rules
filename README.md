@@ -17,6 +17,10 @@ classDiagram
         match : Partial<T>;
         apply : Pick<T>;
     }
+    
+    class PgRulesEngine {
+        applyRules(rules: MatchRule<T>[], targetTable: string): Promise<integer>;
+    }
 ```
 
 ### How it works?
