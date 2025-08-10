@@ -1,15 +1,17 @@
-import {Kysely} from 'kysely';
+import {Kysely, sql} from 'kysely';
 import {MatchRule} from "@/MatchRule";
 
 /**
- * PostgreSQL based rule engine that applies match rules to database tables
+ * PostgreSQL based rule engine that applies match rules to database tables.
+ * applyRules is the main method to apply multiple rules in a single transaction.
+ * applyRules always applied given rules without considering previously applied rules.
  */
 export class PgRulesEngine {
 
     /**
      * Additional field name in the target table to track applied rules.
-     * For example, appliedRulesField can be set to "appliedRules", then applied rule
-     * will be added to the JSON array in this field. Specified "appliedRules" must be a JSON array.
+     * For example, appliedRulesField can be set to "appliedRules TEXT[]", then applied rule
+     * will be added to the JSON array in this field. Specified "appliedRules TEXT[]" must be a PostgreSQL TEXT array type.
      *
      * @private
      */
@@ -51,7 +53,17 @@ export class PgRulesEngine {
                     continue; // Skip rules with no apply changes
                 }
 
-                query = query.set(rule.apply);
+                // Start with the apply object changes
+                const updateObject: Record<string, any> = {...rule.apply};
+
+                // Add appliedRulesField tracking if configured
+                if (this.appliedRulesField) {
+                    // Use PostgreSQL's JSON_ARRAY_APPEND to add the rule name to the JSON array
+                    /*language=TEXT*/
+                    updateObject[this.appliedRulesField] = sql`JSON_ARRAY_APPEND(COALESCE(${sql.ref(this.appliedRulesField)}, JSON_ARRAY()), '$', ${rule.ruleName})`;
+                }
+
+                query = query.set(updateObject);
 
                 // Add WHERE clause from match object
                 const matchEntries = Object.entries(rule.match);
@@ -59,6 +71,7 @@ export class PgRulesEngine {
                     console.warn(`Rule "${rule.ruleName}" has no match conditions, skipping...`);
                     continue; // Skip rules with no match conditions
                 }
+
                 for (const [key, value] of matchEntries) {
                     query = query.where(key, '=', value);
                 }
@@ -70,6 +83,117 @@ export class PgRulesEngine {
             }
 
             return totalAffectedRows;
+        });
+    }
+
+    /**
+     * Clear applied rules tracking for rows matching the given conditions
+     * @param targetTable Name of the table to clear applied rules from
+     * @param whereConditions Conditions to match rows (optional, clears all if not provided)
+     * @returns Promise that resolves to the number of affected rows
+     */
+    async clearAppliedRules<T>(targetTable: string, whereConditions?: Partial<T>): Promise<number> {
+        if (!this.appliedRulesField) {
+            throw new Error('appliedRulesField is not configured. Use setAppliedRulesField() first.');
+        }
+
+        const updateObject: Record<string, any> = {};
+        /*language=TEXT*/
+        updateObject[this.appliedRulesField] = sql`JSON_ARRAY()`;
+
+        let query = this.db.updateTable(targetTable).set(updateObject);
+
+        // Add WHERE conditions if provided
+        if (whereConditions) {
+            const matchEntries = Object.entries(whereConditions);
+            for (const [key, value] of matchEntries) {
+                query = query.where(key, '=', value);
+            }
+        }
+
+        const result = await query.execute();
+        return Number(result[0]?.numUpdatedRows || 0);
+    }
+
+    private normalizeAppliedRules(value: unknown): string[] {
+        const normalizeOne = (v: unknown): string => {
+            if (v == null) return '';
+
+            // If it's already a JS string, try to JSON-parse it once to strip quotes
+            if (typeof v === 'string') {
+                // Fast path: JSON string literal like "\"track-rule\"" or '"track-rule"'
+                if (v.length >= 2 && v.startsWith('"') && v.endsWith('"')) {
+                    try {
+                        return JSON.parse(v);
+                    } catch { /* fall through */
+                    }
+                    return v.slice(1, -1);
+                }
+                // Could also be a JSON array/object as string (unlikely here but safe)
+                try {
+                    const parsed = JSON.parse(v);
+                    if (typeof parsed === 'string') return parsed;     // '"track-rule"' -> track-rule
+                    if (Array.isArray(parsed)) {
+                        // If someone stored '["a","b"]' as a string, flatten one level
+                        return parsed.map(x => String(x)).join(',');
+                    }
+                    return String(parsed);
+                } catch {
+                    return v; // plain string like 'track-rule'
+                }
+            }
+
+            // If pg-mem gave us a JS scalar
+            if (Array.isArray(v)) {
+                // Shouldn't happen here (handled in outer branch), but guard anyway
+                return v.map(x => String(x)).join(',');
+            }
+            return String(v);
+        };
+
+        if (value == null) return [];
+
+        // pg-mem jsonb often arrives as real JS arrays
+        if (Array.isArray(value)) {
+            return value.map(normalizeOne);
+        }
+
+        // Single value paths: wrap into array
+        return [normalizeOne(value)];
+    }
+
+    /**
+     * Get rows with their applied rules
+     * @param targetTable Name of the table to query
+     * @param whereConditions Conditions to match rows (optional)
+     * @returns Promise that resolves to an array of rows with applied rules
+     */
+    async getRowsWithAppliedRules<T>(targetTable: string, whereConditions?: Partial<T>): Promise<(T & {
+        appliedRules?: string[]
+    })[]> {
+        if (!this.appliedRulesField) {
+            throw new Error('appliedRulesField is not configured. Use setAppliedRulesField() first.');
+        }
+
+        let query = this.db.selectFrom(targetTable).selectAll();
+
+        // Add WHERE conditions if provided
+        if (whereConditions) {
+            const matchEntries = Object.entries(whereConditions);
+            for (const [key, value] of matchEntries) {
+                query = query.where(key, '=', value);
+            }
+        }
+
+        const rows = await query.execute();
+
+        // Parse the applied rules JSON array for each row
+        return rows.map(row => {
+            const appliedRulesValue = (row as any)[this.appliedRulesField!];
+            return {
+                ...row,
+                appliedRules: this.normalizeAppliedRules(appliedRulesValue),
+            } as T & { appliedRules?: string[] };
         });
     }
 }
