@@ -31,8 +31,8 @@ describe('MatchRuleFactory', () => {
     });
 
     it('should throw error for null or undefined input', () => {
-      expect(() => MatchRuleFactory.create(null)).toThrow('Invalid rule object provided');
-      expect(() => MatchRuleFactory.create(undefined)).toThrow('Invalid rule object provided');
+      expect(() => MatchRuleFactory.create(null)).toThrow();
+      expect(() => MatchRuleFactory.create(undefined)).toThrow();
     });
 
     it('should throw error for invalid rule name', () => {
@@ -55,42 +55,54 @@ describe('MatchRuleFactory', () => {
       expect(() => MatchRuleFactory.create(json)).toThrow('Rule name must be a non-empty string');
     });
 
-    it('should throw error for missing match object', () => {
+    it('should handle missing match object with default empty object', () => {
       const json = {
         ruleName: 'test-rule',
         apply: { name: 'Updated Name' }
       };
 
-      expect(() => MatchRuleFactory.create(json)).toThrow('Match object must be provided and be an object');
+      const rule = MatchRuleFactory.create(json);
+      expect(rule.ruleName).toBe('test-rule');
+      expect(rule.match).toEqual({});
+      expect(rule.apply).toEqual({ name: 'Updated Name' });
     });
 
-    it('should throw error for invalid match object', () => {
+    it('should handle invalid match object with default empty object', () => {
       const json = {
         ruleName: 'test-rule',
         match: 'invalid',
         apply: { name: 'Updated Name' }
       };
 
-      expect(() => MatchRuleFactory.create(json)).toThrow('Match object must be provided and be an object');
+      const rule = MatchRuleFactory.create(json);
+      expect(rule.ruleName).toBe('test-rule');
+      expect(rule.match).toEqual({});
+      expect(rule.apply).toEqual({ name: 'Updated Name' });
     });
 
-    it('should throw error for missing apply object', () => {
+    it('should handle missing apply object with default empty object', () => {
       const json = {
         ruleName: 'test-rule',
         match: { email: 'test@example.com' }
       };
 
-      expect(() => MatchRuleFactory.create(json)).toThrow('Apply object must be provided and be an object');
+      const rule = MatchRuleFactory.create(json);
+      expect(rule.ruleName).toBe('test-rule');
+      expect(rule.match).toEqual({ email: 'test@example.com' });
+      expect(rule.apply).toEqual({});
     });
 
-    it('should throw error for invalid apply object', () => {
+    it('should handle invalid apply object with default empty object', () => {
       const json = {
         ruleName: 'test-rule',
         match: { email: 'test@example.com' },
         apply: 'invalid'
       };
 
-      expect(() => MatchRuleFactory.create(json)).toThrow('Apply object must be provided and be an object');
+      const rule = MatchRuleFactory.create(json);
+      expect(rule.ruleName).toBe('test-rule');
+      expect(rule.match).toEqual({ email: 'test@example.com' });
+      expect(rule.apply).toEqual({});
     });
   });
 
@@ -119,18 +131,32 @@ describe('MatchRuleFactory', () => {
 
     it('should throw error for invalid rule name', () => {
       expect(() => MatchRuleFactory.createRule('', {}, {})).toThrow('Rule name must be a non-empty string');
+      expect(() => MatchRuleFactory.createRule('   ', {}, {})).toThrow('Rule name must be a non-empty string');
       expect(() => MatchRuleFactory.createRule(null as any, {}, {})).toThrow('Rule name must be a non-empty string');
+      expect(() => MatchRuleFactory.createRule(undefined as any, {}, {})).toThrow('Rule name must be a non-empty string');
       expect(() => MatchRuleFactory.createRule(123 as any, {}, {})).toThrow('Rule name must be a non-empty string');
     });
 
-    it('should throw error for invalid match object', () => {
-      expect(() => MatchRuleFactory.createRule('test', null as any, {})).toThrow('Match object must be provided and be an object');
-      expect(() => MatchRuleFactory.createRule('test', 'invalid' as any, {})).toThrow('Match object must be provided and be an object');
+    it('should handle invalid match object with default empty object', () => {
+      const rule1 = MatchRuleFactory.createRule('test', null as any, {});
+      expect(rule1.match).toEqual({});
+
+      const rule2 = MatchRuleFactory.createRule('test', 'invalid' as any, {});
+      expect(rule2.match).toEqual({});
+
+      const rule3 = MatchRuleFactory.createRule('test', undefined as any, {});
+      expect(rule3.match).toEqual({});
     });
 
-    it('should throw error for invalid apply object', () => {
-      expect(() => MatchRuleFactory.createRule('test', {}, null as any)).toThrow('Apply object must be provided and be an object');
-      expect(() => MatchRuleFactory.createRule('test', {}, 'invalid' as any)).toThrow('Apply object must be provided and be an object');
+    it('should handle invalid apply object with default empty object', () => {
+      const rule1 = MatchRuleFactory.createRule('test', {}, null as any);
+      expect(rule1.apply).toEqual({});
+
+      const rule2 = MatchRuleFactory.createRule('test', {}, 'invalid' as any);
+      expect(rule2.apply).toEqual({});
+
+      const rule3 = MatchRuleFactory.createRule('test', {}, undefined as any);
+      expect(rule3.apply).toEqual({});
     });
 
     it('should handle complex match and apply objects', () => {

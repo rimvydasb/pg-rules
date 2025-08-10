@@ -7,6 +7,10 @@ export class MatchRuleFactory {
      * @param json
      */
     static create<T>(json: any): MatchRule<T> {
+        if (!json || typeof json !== 'object') {
+            throw new Error('Invalid rule object provided');
+        }
+
         return MatchRuleFactory.createRule<T>(
             json.ruleName,
             json.match || {},
@@ -22,7 +26,7 @@ export class MatchRuleFactory {
      * @returns A new MatchRule instance
      */
     static createRule<T>(ruleName: string, match: Partial<T>, apply: Partial<T>): MatchRule<T> {
-        if (!ruleName || !ruleName.trim()) {
+        if (!ruleName || typeof ruleName !== 'string' || ruleName.trim() === '') {
             throw new Error('Rule name must be a non-empty string');
         }
 
