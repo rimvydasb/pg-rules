@@ -5,7 +5,25 @@ import {MatchRule} from "@/MatchRule";
  * PostgreSQL based rule engine that applies match rules to database tables
  */
 export class PgRulesEngine {
+
+    /**
+     * Additional field name in the target table to track applied rules.
+     * For example, appliedRulesField can be set to "appliedRules", then applied rule
+     * will be added to the JSON array in this field. Specified "appliedRules" must be a JSON array.
+     *
+     * @private
+     */
+    private appliedRulesField: string | null = null;
+
     constructor(private db: Kysely<any>) {
+    }
+
+    /**
+     * Set the field name to track applied rules
+     * @param fieldName Name of the field to store applied rules
+     */
+    setAppliedRulesField(fieldName: string): void {
+        this.appliedRulesField = fieldName.trim();
     }
 
     /**
