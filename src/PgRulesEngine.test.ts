@@ -121,6 +121,7 @@ describe('PgRulesEngine', () => {
                 .execute();
 
             expect(allUsers).toHaveLength(4);
+            // @ts-ignore
             expect(allUsers.every((u: User) => !u.name.includes('Should Not Update'))).toBe(true);
         });
 
@@ -439,6 +440,246 @@ describe('PgRulesEngine', () => {
 
             expect(user.name).toBe('Alice No Tracking');
             // appliedRules field should still be null/empty since no tracking was configured
+        });
+    });
+
+    describe('regex matching functionality', () => {
+        beforeEach(async () => {
+            // Insert additional test data with various categories and statuses
+            await db
+                .insertInto('users')
+                .values([
+                    { email: 'user1@test.com', name: 'User One' },
+                    { email: 'user2@test.com', name: 'User Two' },
+                    { email: 'user3@test.com', name: 'User Three' },
+                ])
+                .execute();
+        });
+
+        it('should match strings using regex patterns with OR operator', async () => {
+            // Set different roles (role column already exists in User schema)
+            await db.updateTable('users').set({ role: 'admin' }).where('email', '=', 'user1@test.com').execute();
+            await db.updateTable('users').set({ role: 'moderator' }).where('email', '=', 'user2@test.com').execute();
+            await db.updateTable('users').set({ role: 'guest' }).where('email', '=', 'user3@test.com').execute();
+
+            const rule = MatchRuleFactory.createRule<User>(
+                'role-staff-rule',
+                { role: 'admin|moderator' }, // Should match both "admin" and "moderator"
+                { name: 'Staff Member' }
+            );
+
+            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+
+            expect(affectedRows).toBe(2); // Should match 2 users (admin and moderator)
+
+            // Verify only the matching users were updated
+            const updatedUsers = await db
+                .selectFrom('users')
+                .selectAll()
+                .where('name', '=', 'Staff Member')
+                .execute();
+
+            expect(updatedUsers).toHaveLength(2);
+            expect(updatedUsers.map((u: any) => u.role).sort()).toEqual(['admin', 'moderator']);
+        });
+
+        it('should match exact string patterns', async () => {
+            // Test exact string matching (no special regex characters)
+            const rule = MatchRuleFactory.createRule<User>(
+                'exact-email-rule',
+                { email: 'john@example.com' }, // Exact match
+                { name: 'Exact Match User' }
+            );
+
+            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+
+            expect(affectedRows).toBe(1); // Should match exactly one user
+
+            const updatedUser = await db
+                .selectFrom('users')
+                .selectAll()
+                .where('email', '=', 'john@example.com')
+                .executeTakeFirst();
+
+            expect(updatedUser.name).toBe('Exact Match User');
+        });
+
+        it('should handle regex patterns with special characters', async () => {
+            // Set various statuses
+            await db.updateTable('users').set({ status: 'active' }).where('email', '=', 'john@example.com').execute();
+            await db.updateTable('users').set({ status: 'inactive' }).where('email', '=', 'jane@example.com').execute();
+            await db.updateTable('users').set({ status: 'pending' }).where('email', '=', 'bob@example.com').execute();
+
+            const rule = MatchRuleFactory.createRule<User>(
+                'status-pattern-rule',
+                { status: '^(active|pending)$' }, // Should match "active" or "pending" exactly
+                { name: 'Active or Pending User' }
+            );
+
+            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+
+            expect(affectedRows).toBe(2); // Should match 2 users (active and pending)
+
+            const updatedUsers = await db
+                .selectFrom('users')
+                .selectAll()
+                .where('name', '=', 'Active or Pending User')
+                .execute();
+
+            expect(updatedUsers).toHaveLength(2);
+            expect(updatedUsers.map((u: any) => u.status).sort()).toEqual(['active', 'pending']);
+        });
+
+        it('should handle case-sensitive regex matching', async () => {
+            // Set roles with different cases
+            await db.updateTable('users').set({ role: 'Admin' }).where('email', '=', 'john@example.com').execute();
+            await db.updateTable('users').set({ role: 'admin' }).where('email', '=', 'jane@example.com').execute();
+            await db.updateTable('users').set({ role: 'ADMIN' }).where('email', '=', 'bob@example.com').execute();
+
+            const rule = MatchRuleFactory.createRule<User>(
+                'case-sensitive-rule',
+                { role: 'Admin' }, // Should only match exact case
+                { name: 'Exact Case Match' }
+            );
+
+            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+
+            expect(affectedRows).toBe(1); // Should match only one user (exact case)
+
+            const updatedUser = await db
+                .selectFrom('users')
+                .selectAll()
+                .where('name', '=', 'Exact Case Match')
+                .executeTakeFirst();
+
+            expect(updatedUser.role).toBe('Admin');
+        });
+
+        it('should use direct equality for non-string values', async () => {
+            // Set test data
+            await db.updateTable('users').set({ age: 25, isVerified: true }).where('email', '=', 'john@example.com').execute();
+            await db.updateTable('users').set({ age: 30, isVerified: false }).where('email', '=', 'jane@example.com').execute();
+            await db.updateTable('users').set({ age: 25, isVerified: true }).where('email', '=', 'bob@example.com').execute();
+
+            const rule = MatchRuleFactory.createRule<User>(
+                'non-string-rule',
+                {
+                    age: 25,           // Number - should use direct equality
+                    isVerified: true  // Boolean - should use direct equality
+                },
+                { name: 'Non-String Match' }
+            );
+
+            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+
+            expect(affectedRows).toBe(2); // Should match 2 users with age=25 AND isVerified=true
+
+            const updatedUsers = await db
+                .selectFrom('users')
+                .selectAll()
+                .where('name', '=', 'Non-String Match')
+                .execute();
+
+            expect(updatedUsers).toHaveLength(2);
+            expect(updatedUsers.every((u: any) => u.age === 25 && u.isVerified === true)).toBe(true);
+        });
+
+        it('should handle mixed string and non-string conditions', async () => {
+            // Set test data using role (already exists) and priority
+            await db.updateTable('users').set({ role: 'admin', priority: 1 }).where('email', '=', 'john@example.com').execute();
+            await db.updateTable('users').set({ role: 'user', priority: 1 }).where('email', '=', 'jane@example.com').execute();
+            await db.updateTable('users').set({ role: 'admin', priority: 2 }).where('email', '=', 'bob@example.com').execute();
+
+            const rule = MatchRuleFactory.createRule<User>(
+                'mixed-conditions-rule',
+                {
+                    role: 'admin|user',  // String - should use regex
+                    priority: 1          // Number - should use direct equality
+                },
+                { name: 'Mixed Conditions Match' }
+            );
+
+            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+
+            expect(affectedRows).toBe(2); // Should match users with (admin OR user) AND priority=1
+
+            const updatedUsers = await db
+                .selectFrom('users')
+                .selectAll()
+                .where('name', '=', 'Mixed Conditions Match')
+                .execute();
+
+            expect(updatedUsers).toHaveLength(2);
+            expect(updatedUsers.every((u: any) => u.priority === 1)).toBe(true);
+            expect(updatedUsers.map((u: any) => u.role).sort()).toEqual(['admin', 'user']);
+        });
+
+        it('should handle regex patterns with no matches', async () => {
+            const rule = MatchRuleFactory.createRule<User>(
+                'no-match-regex-rule',
+                { email: 'nonexistent.*pattern' }, // Regex that matches nothing
+                { name: 'Should Not Match' }
+            );
+
+            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+
+            expect(affectedRows).toBe(0);
+
+            // Verify no users were updated
+            const updatedUsers = await db
+                .selectFrom('users')
+                .selectAll()
+                .where('name', '=', 'Should Not Match')
+                .execute();
+
+            expect(updatedUsers).toHaveLength(0);
+        });
+
+        it('should handle regex patterns with dot metacharacter', async () => {
+            // Test dot (.) metacharacter matching any character
+            const rule = MatchRuleFactory.createRule<User>(
+                'dot-pattern-rule',
+                { email: 'j..n@example.com' }, // Should match "john@example.com"
+                { name: 'Dot Pattern Match' }
+            );
+
+            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+
+            expect(affectedRows).toBe(1);
+
+            const updatedUser = await db
+                .selectFrom('users')
+                .selectAll()
+                .where('email', '=', 'john@example.com')
+                .executeTakeFirst();
+
+            expect(updatedUser.name).toBe('Dot Pattern Match');
+        });
+
+        it('should handle complex regex patterns', async () => {
+            // Set phone numbers
+            await db.updateTable('users').set({ phone: '+1-555-123-4567' }).where('email', '=', 'john@example.com').execute();
+            await db.updateTable('users').set({ phone: '555.123.4568' }).where('email', '=', 'jane@example.com').execute();
+            await db.updateTable('users').set({ phone: '(555) 123-4569' }).where('email', '=', 'bob@example.com').execute();
+            await db.updateTable('users').set({ phone: '5551234570' }).where('email', '=', 'alice@example.com').execute();
+
+            const rule = MatchRuleFactory.createRule<User>(
+                'phone-pattern-rule',
+                { phone: '.*555.*123.*' }, // Should match any phone with 555 and 123
+                { name: 'Phone Pattern Match' }
+            );
+
+            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+
+            expect(affectedRows).toBe(4); // Should match all phone numbers containing 555 and 123
+
+            const updatedUsers = await db
+                .selectFrom('users')
+                .selectAll()
+                .where('name', '=', 'Phone Pattern Match')
+                .execute();
+
+            expect(updatedUsers).toHaveLength(4);
         });
     });
 });

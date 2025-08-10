@@ -73,7 +73,14 @@ export class PgRulesEngine {
                 }
 
                 for (const [key, value] of matchEntries) {
-                    query = query.where(key, '=', value);
+                    if (typeof value === 'string') {
+                        // Use PostgreSQL regex operator for case-sensitive string matching
+                        //query = query.where(sql.ref(key), '~', value);
+                        query = query.where(sql<boolean>`regexp_like(${sql.ref(key)}, ${sql.val(value)})`)
+                    } else {
+                        // Use direct equality for non-string types
+                        query = query.where(sql.ref(key), '=', value);
+                    }
                 }
 
                 // Execute the query and get affected row count

@@ -13,9 +13,15 @@ export function createTestDatabase(): Kysely<Database> {
             id             SERIAL PRIMARY KEY,
             email          VARCHAR(255) UNIQUE NOT NULL,
             name           VARCHAR(255)        NOT NULL,
+            role           VARCHAR(50) DEFAULT 'guest',
+            status         VARCHAR(50),
+            age            INTEGER,
+            priority       INTEGER     DEFAULT 0,
+            "isVerified"   BOOLEAN     DEFAULT FALSE,
             "appliedRules" JSONB,
-            created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            phone          VARCHAR(50),
+            created_at     TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
+            updated_at     TIMESTAMP   DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE TABLE posts
@@ -35,6 +41,18 @@ export function createTestDatabase(): Kysely<Database> {
     `);
 
     const publicSchema = db.public;
+
+    // CASE-SENSITIVE: regexp_like(string, pattern[, flags])
+    publicSchema.registerFunction({
+        name: 'regexp_like',
+        args: [DataType.text, DataType.text],
+        returns: DataType.bool,
+        implementation: (s: string | null, p: string) => {
+          const regexp =   new RegExp(p);
+          const result = s ? regexp.test(s) : false;
+          return result;
+        }
+    });
 
     publicSchema.registerFunction({
         name: 'json_array',

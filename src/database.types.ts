@@ -1,28 +1,35 @@
-import { Generated, Insertable, Selectable, Updateable } from 'kysely';
+import {Generated, Insertable, Selectable, Updateable} from 'kysely';
 
 // Database schema interfaces
 export interface UserTable {
-  id: Generated<number>;
-  email: string;
-  name: string;
-  created_at: Generated<Date>;
-  updated_at: Generated<Date>;
+    id: Generated<number>;
+    email?: string;
+    name?: string;
+    role?: string;
+    status?: string;
+    age?: number;
+    isVerified?: boolean;
+    priority?: number;
+    phone?: string;
+    appliedRules?: string[];
+    created_at: Generated<Date>;
+    updated_at: Generated<Date>;
 }
 
 export interface PostTable {
-  id: Generated<number>;
-  title: string;
-  content: string;
-  author_id: number;
-  published: boolean;
-  created_at: Generated<Date>;
-  updated_at: Generated<Date>;
+    id: Generated<number>;
+    title: string;
+    content: string;
+    author_id: number;
+    published: boolean;
+    created_at: Generated<Date>;
+    updated_at: Generated<Date>;
 }
 
 // Database interface
 export interface Database {
-  users: UserTable;
-  posts: PostTable;
+    users: UserTable;
+    posts: PostTable;
 }
 
 // Type helpers for easier usage

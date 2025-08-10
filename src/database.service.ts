@@ -5,7 +5,7 @@ export class DatabaseService {
   constructor(private db: Kysely<Database>) {}
 
   // User operations
-  async createUser(user: NewUser): Promise<User> {
+  async createUser(user: Partial<NewUser>): Promise<User> {
     return await this.db
       .insertInto('users')
       .values(user)
