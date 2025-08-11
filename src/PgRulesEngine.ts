@@ -39,10 +39,13 @@ export class PgRulesEngine {
             return 0;
         }
 
+        // Sort rules by priority (ascending), defaulting to 0 if not specified
+        const sortedRules = [...rules].sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
+
         return await this.db.transaction().execute(async (trx) => {
             let totalAffectedRows = 0;
 
-            for (const rule of rules) {
+            for (const rule of sortedRules) {
                 // Build the update query
                 let query = trx.updateTable(targetTable);
 

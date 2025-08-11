@@ -26,11 +26,11 @@ describe('PgRulesEngine', () => {
     describe('applyRules', () => {
         it('should apply a single rule to update user names', async () => {
             // Create a rule to update John's name
-            const rule = MatchRuleFactory.createRule<User>(
-                'update-john-name',
-                {email: 'john@example.com'},
-                {name: 'John Updated'}
-            );
+            const rule = MatchRuleFactory.create({
+                ruleName: 'update-john-name',
+                match: {email: 'john@example.com'},
+                apply: {name: 'John Updated'}
+            });
 
             const affectedRows = await rulesEngine.applyRules([rule], 'users');
 
@@ -47,18 +47,18 @@ describe('PgRulesEngine', () => {
         });
 
         it('should apply multiple rules in a single transaction', async () => {
-            const rules = [
-                MatchRuleFactory.createRule<User>(
-                    'update-john',
-                    {email: 'john@example.com'},
-                    {name: 'John Modified'}
-                ),
-                MatchRuleFactory.createRule<User>(
-                    'update-jane',
-                    {email: 'jane@example.com'},
-                    {name: 'Jane Modified'}
-                ),
-            ];
+            const rules = MatchRuleFactory.createRules([
+                {
+                    ruleName: 'update-john',
+                    match: {email: 'john@example.com'},
+                    apply: {name: 'John Modified'}
+                },
+                {
+                    ruleName: 'update-jane',
+                    match: {email: 'jane@example.com'},
+                    apply: {name: 'Jane Modified'}
+                },
+            ]);
 
             const affectedRows = await rulesEngine.applyRules(rules, 'users');
 
@@ -84,11 +84,11 @@ describe('PgRulesEngine', () => {
                 .where('email', '=', 'bob@example.com')
                 .execute();
 
-            const rule = MatchRuleFactory.createRule<User>(
-                'update-specific-user',
-                {email: 'bob@example.com', name: 'Target User'},
-                {name: 'Updated Target User'}
-            );
+            const rule = MatchRuleFactory.create({
+                ruleName: 'update-specific-user',
+                match: {email: 'bob@example.com', name: 'Target User'},
+                apply: {name: 'Updated Target User'}
+            });
 
             const affectedRows = await rulesEngine.applyRules([rule], 'users');
 
@@ -104,11 +104,11 @@ describe('PgRulesEngine', () => {
         });
 
         it('should return 0 when no rules match any records', async () => {
-            const rule = MatchRuleFactory.createRule<User>(
-                'update-nonexistent',
-                {email: 'nonexistent@example.com'},
-                {name: 'Should Not Update'}
-            );
+            const rule = MatchRuleFactory.create({
+                ruleName: 'update-nonexistent',
+                match: {email: 'nonexistent@example.com'},
+                apply: {name: 'Should Not Update'}
+            });
 
             const affectedRows = await rulesEngine.applyRules([rule], 'users');
 
@@ -132,18 +132,18 @@ describe('PgRulesEngine', () => {
         });
 
         it('should skip rules with empty apply objects', async () => {
-            const rules = [
-                MatchRuleFactory.createRule<User>(
-                    'empty-apply',
-                    {email: 'john@example.com'},
-                    {} // Empty apply object
-                ),
-                MatchRuleFactory.createRule<User>(
-                    'valid-rule',
-                    {email: 'jane@example.com'},
-                    {name: 'Jane Updated'}
-                ),
-            ];
+            const rules = MatchRuleFactory.createRules([
+                {
+                    ruleName: 'empty-apply',
+                    match: {email: 'john@example.com'},
+                    apply: {}
+                },
+                {
+                    ruleName: 'valid-rule',
+                    match: {email: 'jane@example.com'},
+                    apply: {name: 'Jane Updated'}
+                },
+            ]);
 
             const affectedRows = await rulesEngine.applyRules(rules, 'users');
 
@@ -167,14 +167,14 @@ describe('PgRulesEngine', () => {
         });
 
         it('should handle rules that update multiple fields', async () => {
-            const rule = MatchRuleFactory.createRule<User>(
-                'update-multiple-fields',
-                {email: 'alice@example.com'},
-                {
+            const rule = MatchRuleFactory.create({
+                ruleName: 'update-multiple-fields',
+                match: {email: 'alice@example.com'},
+                apply: {
                     name: 'Alice Updated',
                     email: 'alice.updated@example.com'
                 }
-            );
+            });
 
             const affectedRows = await rulesEngine.applyRules([rule], 'users');
 
@@ -195,6 +195,60 @@ describe('PgRulesEngine', () => {
         it('should maintain transaction integrity on error', async () => {
             // Do not write this test.
         });
+
+        it('should apply rules in priority order (lower priority first)', async () => {
+            // Jane will be updated twice, but the lower priority rule should apply first
+            const rules = MatchRuleFactory.createRules([
+                {
+                    ruleName: 'priority-2',
+                    match: {email: 'jane@example.com'},
+                    apply: {name: 'Jane Priority 2'},
+                    priority: 2
+                },
+                {
+                    ruleName: 'priority-0',
+                    match: {email: 'jane@example.com'},
+                    apply: {name: 'Jane Priority 0'},
+                    priority: 0
+                },
+                {
+                    ruleName: 'priority-1',
+                    match: {email: 'jane@example.com'},
+                    apply: {name: 'Jane Priority 1'},
+                    priority: 1
+                },
+            ]);
+            await rulesEngine.applyRules(rules, 'users');
+            const updatedUser = await db
+                .selectFrom('users')
+                .selectAll()
+                .where('email', '=', 'jane@example.com')
+                .executeTakeFirst();
+            expect(updatedUser.name).toBe('Jane Priority 2'); // Last rule applied (highest priority number)
+        });
+
+        it('should default priority to 0 if not specified', async () => {
+            const rules = MatchRuleFactory.createRules([
+                {
+                    ruleName: 'default-priority',
+                    match: {email: 'bob@example.com'},
+                    apply: {name: 'Bob Default Priority'}
+                },
+                {
+                    ruleName: 'explicit-priority-1',
+                    match: {email: 'bob@example.com'},
+                    apply: {name: 'Bob Priority 1'},
+                    priority: 1
+                },
+            ]);
+            await rulesEngine.applyRules(rules, 'users');
+            const updatedUser = await db
+                .selectFrom('users')
+                .selectAll()
+                .where('email', '=', 'bob@example.com')
+                .executeTakeFirst();
+            expect(updatedUser.name).toBe('Bob Priority 1'); // Last rule applied (priority 1)
+        });
     });
 
     describe('appliedRulesField functionality', () => {
@@ -204,11 +258,11 @@ describe('PgRulesEngine', () => {
         });
 
         it('should track applied rules when appliedRulesField is configured', async () => {
-            const rule = MatchRuleFactory.createRule<User>(
-                'track-rule',
-                {email: 'john@example.com'},
-                {name: 'John Tracked'}
-            );
+            const rule = MatchRuleFactory.create({
+                ruleName: 'track-rule',
+                match: {email: 'john@example.com'},
+                apply: {name: 'John Tracked'}
+            });
 
             await rulesEngine.applyRules([rule], 'users');
 
@@ -221,18 +275,18 @@ describe('PgRulesEngine', () => {
         });
 
         it('should track multiple rules applied to the same row', async () => {
-            const rules = [
-                MatchRuleFactory.createRule<User>(
-                    'first-rule',
-                    {email: 'jane@example.com'},
-                    {name: 'Jane First'}
-                ),
-                MatchRuleFactory.createRule<User>(
-                    'second-rule',
-                    {email: 'jane@example.com'},
-                    {name: 'Jane Second'}
-                )
-            ];
+            const rules = MatchRuleFactory.createRules([
+                {
+                    ruleName: 'first-rule',
+                    match: {email: 'jane@example.com'},
+                    apply: {name: 'Jane First'}
+                },
+                {
+                    ruleName: 'second-rule',
+                    match: {email: 'jane@example.com'},
+                    apply: {name: 'Jane Second'}
+                }
+            ]);
 
             // Apply first rule
             await rulesEngine.applyRules([rules[0]], 'users');
@@ -257,11 +311,11 @@ describe('PgRulesEngine', () => {
 
         it('should clear applied rules for specific conditions', async () => {
             // First apply a rule
-            const rule = MatchRuleFactory.createRule<User>(
-                'clear-test-rule',
-                {email: 'alice@example.com'},
-                {name: 'Alice Modified'}
-            );
+            const rule = MatchRuleFactory.create({
+                ruleName: 'clear-test-rule',
+                match: {email: 'alice@example.com'},
+                apply: {name: 'Alice Modified'}
+            });
 
             await rulesEngine.applyRules([rule], 'users');
 
@@ -280,18 +334,18 @@ describe('PgRulesEngine', () => {
 
         it('should clear applied rules for all rows when no conditions provided', async () => {
             // Apply rules to multiple users
-            const rules = [
-                MatchRuleFactory.createRule<User>(
-                    'bulk-rule-1',
-                    {email: 'john@example.com'},
-                    {name: 'John Bulk'}
-                ),
-                MatchRuleFactory.createRule<User>(
-                    'bulk-rule-2',
-                    {email: 'jane@example.com'},
-                    {name: 'Jane Bulk'}
-                )
-            ];
+            const rules = MatchRuleFactory.createRules([
+                {
+                    ruleName: 'bulk-rule-1',
+                    match: {email: 'john@example.com'},
+                    apply: {name: 'John Bulk'}
+                },
+                {
+                    ruleName: 'bulk-rule-2',
+                    match: {email: 'jane@example.com'},
+                    apply: {name: 'Jane Bulk'}
+                }
+            ]);
 
             await rulesEngine.applyRules(rules, 'users');
 
@@ -327,18 +381,18 @@ describe('PgRulesEngine', () => {
 
         it('should filter rows correctly with WHERE conditions in getRowsWithAppliedRules', async () => {
             // Apply rules to different users
-            const rules = [
-                MatchRuleFactory.createRule<User>(
-                    'filter-rule-1',
-                    {email: 'john@example.com'},
-                    {name: 'John Filtered'}
-                ),
-                MatchRuleFactory.createRule<User>(
-                    'filter-rule-2',
-                    {email: 'jane@example.com'},
-                    {name: 'Jane Filtered'}
-                )
-            ];
+            const rules = MatchRuleFactory.createRules([
+                {
+                    ruleName: 'filter-rule-1',
+                    match: {email: 'john@example.com'},
+                    apply: {name: 'John Filtered'}
+                },
+                {
+                    ruleName: 'filter-rule-2',
+                    match: {email: 'jane@example.com'},
+                    apply: {name: 'Jane Filtered'}
+                }
+            ]);
 
             await rulesEngine.applyRules(rules, 'users');
 
@@ -357,11 +411,11 @@ describe('PgRulesEngine', () => {
 
         it('should work correctly when appliedRulesField is changed between operations', async () => {
             // Apply rule with first field name
-            const rule1 = MatchRuleFactory.createRule<User>(
-                'field-test-1',
-                {email: 'bob@example.com'},
-                {name: 'Bob Field Test'}
-            );
+            const rule1 = MatchRuleFactory.create({
+                ruleName: 'field-test-1',
+                match: {email: 'bob@example.com'},
+                apply: {name: 'Bob Field Test'}
+            });
 
             await rulesEngine.applyRules([rule1], 'users');
 
@@ -372,11 +426,11 @@ describe('PgRulesEngine', () => {
             // Change the field name and apply another rule
             rulesEngine.setAppliedRulesField('appliedRules'); // Same field name for this test
 
-            const rule2 = MatchRuleFactory.createRule<User>(
-                'field-test-2',
-                {email: 'bob@example.com'},
-                {name: 'Bob Field Test 2'}
-            );
+            const rule2 = MatchRuleFactory.create({
+                ruleName: 'field-test-2',
+                match: {email: 'bob@example.com'},
+                apply: {name: 'Bob Field Test 2'}
+            });
 
             await rulesEngine.applyRules([rule2], 'users');
 
@@ -386,18 +440,18 @@ describe('PgRulesEngine', () => {
         });
 
         it('should track rules in transaction correctly', async () => {
-            const rules = [
-                MatchRuleFactory.createRule<User>(
-                    'transaction-rule-1',
-                    {email: 'john@example.com'},
-                    {name: 'John Transaction 1'}
-                ),
-                MatchRuleFactory.createRule<User>(
-                    'transaction-rule-2',
-                    {email: 'jane@example.com'},
-                    {name: 'Jane Transaction 2'}
-                )
-            ];
+            const rules = MatchRuleFactory.createRules([
+                {
+                    ruleName: 'transaction-rule-1',
+                    match: {email: 'john@example.com'},
+                    apply: {name: 'John Transaction 1'}
+                },
+                {
+                    ruleName: 'transaction-rule-2',
+                    match: {email: 'jane@example.com'},
+                    apply: {name: 'Jane Transaction 2'}
+                }
+            ]);
 
             // Apply both rules in a single transaction
             const affectedRows = await rulesEngine.applyRules(rules, 'users');
@@ -422,11 +476,11 @@ describe('PgRulesEngine', () => {
             // Create engine without setting appliedRulesField
             const basicEngine = new PgRulesEngine(db);
 
-            const rule = MatchRuleFactory.createRule<User>(
-                'no-tracking-rule',
-                {email: 'alice@example.com'},
-                {name: 'Alice No Tracking'}
-            );
+            const rule = MatchRuleFactory.create({
+                ruleName: 'no-tracking-rule',
+                match: {email: 'alice@example.com'},
+                apply: {name: 'Alice No Tracking'}
+            });
 
             const affectedRows = await basicEngine.applyRules([rule], 'users');
             expect(affectedRows).toBe(1);
@@ -462,11 +516,13 @@ describe('PgRulesEngine', () => {
             await db.updateTable('users').set({ role: 'moderator' }).where('email', '=', 'user2@test.com').execute();
             await db.updateTable('users').set({ role: 'guest' }).where('email', '=', 'user3@test.com').execute();
 
-            const rule = MatchRuleFactory.createRule<User>(
-                'role-staff-rule',
-                { role: 'admin|moderator' }, // Should match both "admin" and "moderator"
-                { name: 'Staff Member' }
-            );
+            const rule = MatchRuleFactory.createRules([
+                {
+                    ruleName: 'role-staff-rule',
+                    match: { role: 'admin|moderator' },
+                    apply: { name: 'Staff Member' }
+                }
+            ])[0];
 
             const affectedRows = await rulesEngine.applyRules([rule], 'users');
 
@@ -485,11 +541,13 @@ describe('PgRulesEngine', () => {
 
         it('should match exact string patterns', async () => {
             // Test exact string matching (no special regex characters)
-            const rule = MatchRuleFactory.createRule<User>(
-                'exact-email-rule',
-                { email: 'john@example.com' }, // Exact match
-                { name: 'Exact Match User' }
-            );
+            const rule = MatchRuleFactory.createRules([
+                {
+                    ruleName: 'exact-email-rule',
+                    match: { email: 'john@example.com' },
+                    apply: { name: 'Exact Match User' }
+                }
+            ])[0];
 
             const affectedRows = await rulesEngine.applyRules([rule], 'users');
 
@@ -510,11 +568,13 @@ describe('PgRulesEngine', () => {
             await db.updateTable('users').set({ status: 'inactive' }).where('email', '=', 'jane@example.com').execute();
             await db.updateTable('users').set({ status: 'pending' }).where('email', '=', 'bob@example.com').execute();
 
-            const rule = MatchRuleFactory.createRule<User>(
-                'status-pattern-rule',
-                { status: '^(active|pending)$' }, // Should match "active" or "pending" exactly
-                { name: 'Active or Pending User' }
-            );
+            const rule = MatchRuleFactory.createRules([
+                {
+                    ruleName: 'status-pattern-rule',
+                    match: { status: '^(active|pending)$' },
+                    apply: { name: 'Active or Pending User' }
+                }
+            ])[0];
 
             const affectedRows = await rulesEngine.applyRules([rule], 'users');
 
@@ -536,11 +596,13 @@ describe('PgRulesEngine', () => {
             await db.updateTable('users').set({ role: 'admin' }).where('email', '=', 'jane@example.com').execute();
             await db.updateTable('users').set({ role: 'ADMIN' }).where('email', '=', 'bob@example.com').execute();
 
-            const rule = MatchRuleFactory.createRule<User>(
-                'case-sensitive-rule',
-                { role: 'Admin' }, // Should only match exact case
-                { name: 'Exact Case Match' }
-            );
+            const rule = MatchRuleFactory.createRules([
+                {
+                    ruleName: 'case-sensitive-rule',
+                    match: { role: 'Admin' },
+                    apply: { name: 'Exact Case Match' }
+                }
+            ])[0];
 
             const affectedRows = await rulesEngine.applyRules([rule], 'users');
 
@@ -561,14 +623,16 @@ describe('PgRulesEngine', () => {
             await db.updateTable('users').set({ age: 30, isVerified: false }).where('email', '=', 'jane@example.com').execute();
             await db.updateTable('users').set({ age: 25, isVerified: true }).where('email', '=', 'bob@example.com').execute();
 
-            const rule = MatchRuleFactory.createRule<User>(
-                'non-string-rule',
+            const rule = MatchRuleFactory.createRules([
                 {
-                    age: 25,           // Number - should use direct equality
-                    isVerified: true  // Boolean - should use direct equality
-                },
-                { name: 'Non-String Match' }
-            );
+                    ruleName: 'non-string-rule',
+                    match: {
+                        age: 25,
+                        isVerified: true
+                    },
+                    apply: { name: 'Non-String Match' }
+                }
+            ])[0];
 
             const affectedRows = await rulesEngine.applyRules([rule], 'users');
 
@@ -590,14 +654,16 @@ describe('PgRulesEngine', () => {
             await db.updateTable('users').set({ role: 'user', priority: 1 }).where('email', '=', 'jane@example.com').execute();
             await db.updateTable('users').set({ role: 'admin', priority: 2 }).where('email', '=', 'bob@example.com').execute();
 
-            const rule = MatchRuleFactory.createRule<User>(
-                'mixed-conditions-rule',
+            const rule = MatchRuleFactory.createRules([
                 {
-                    role: 'admin|user',  // String - should use regex
-                    priority: 1          // Number - should use direct equality
-                },
-                { name: 'Mixed Conditions Match' }
-            );
+                    ruleName: 'mixed-conditions-rule',
+                    match: {
+                        role: 'admin|user',
+                        priority: 1
+                    },
+                    apply: { name: 'Mixed Conditions Match' }
+                }
+            ])[0];
 
             const affectedRows = await rulesEngine.applyRules([rule], 'users');
 
@@ -615,11 +681,13 @@ describe('PgRulesEngine', () => {
         });
 
         it('should handle regex patterns with no matches', async () => {
-            const rule = MatchRuleFactory.createRule<User>(
-                'no-match-regex-rule',
-                { email: 'nonexistent.*pattern' }, // Regex that matches nothing
-                { name: 'Should Not Match' }
-            );
+            const rule = MatchRuleFactory.createRules([
+                {
+                    ruleName: 'no-match-regex-rule',
+                    match: { email: 'nonexistent.*pattern' },
+                    apply: { name: 'Should Not Match' }
+                }
+            ])[0];
 
             const affectedRows = await rulesEngine.applyRules([rule], 'users');
 
@@ -637,11 +705,13 @@ describe('PgRulesEngine', () => {
 
         it('should handle regex patterns with dot metacharacter', async () => {
             // Test dot (.) metacharacter matching any character
-            const rule = MatchRuleFactory.createRule<User>(
-                'dot-pattern-rule',
-                { email: 'j..n@example.com' }, // Should match "john@example.com"
-                { name: 'Dot Pattern Match' }
-            );
+            const rule = MatchRuleFactory.createRules([
+                {
+                    ruleName: 'dot-pattern-rule',
+                    match: { email: 'j..n@example.com' },
+                    apply: { name: 'Dot Pattern Match' }
+                }
+            ])[0];
 
             const affectedRows = await rulesEngine.applyRules([rule], 'users');
 
@@ -663,11 +733,13 @@ describe('PgRulesEngine', () => {
             await db.updateTable('users').set({ phone: '(555) 123-4569' }).where('email', '=', 'bob@example.com').execute();
             await db.updateTable('users').set({ phone: '5551234570' }).where('email', '=', 'alice@example.com').execute();
 
-            const rule = MatchRuleFactory.createRule<User>(
-                'phone-pattern-rule',
-                { phone: '.*555.*123.*' }, // Should match any phone with 555 and 123
-                { name: 'Phone Pattern Match' }
-            );
+            const rule = MatchRuleFactory.createRules([
+                {
+                    ruleName: 'phone-pattern-rule',
+                    match: { phone: '.*555.*123.*' },
+                    apply: { name: 'Phone Pattern Match' }
+                }
+            ])[0];
 
             const affectedRows = await rulesEngine.applyRules([rule], 'users');
 

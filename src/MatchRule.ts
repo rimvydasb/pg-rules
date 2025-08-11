@@ -2,6 +2,14 @@
  * Represents a match rule that can be applied to database records
  */
 export interface MatchRule<T = any> {
+
+    /**
+     * Priority of the rule.
+     * Rules with lower priority numbers will be applied first.
+     * If not specified, the default priority is 0.
+     */
+    readonly priority: number;
+
     /**
      * Name of the rule, used for identification and logging.
      * Rule name can be added to "appliedRules" field in the database to track which rules were applied.
@@ -22,4 +30,3 @@ export interface MatchRule<T = any> {
      */
     readonly apply: Partial<T>;
 }
-

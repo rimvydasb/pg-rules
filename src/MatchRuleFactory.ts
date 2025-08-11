@@ -10,11 +10,11 @@ export class MatchRuleFactory {
         if (!json || typeof json !== 'object') {
             throw new Error('Invalid rule object provided');
         }
-
         return MatchRuleFactory.createRule<T>(
             json.ruleName,
             json.match || {},
-            json.apply || {}
+            json.apply || {},
+            json.priority || 0
         );
     }
 
@@ -25,15 +25,27 @@ export class MatchRuleFactory {
      * @param apply The changes to apply
      * @returns A new MatchRule instance
      */
-    static createRule<T>(ruleName: string, match: Partial<T>, apply: Partial<T>): MatchRule<T> {
+    static createRule<T>(ruleName: string, match: Partial<T>, apply: Partial<T>, priority: number = 0): MatchRule<T> {
         if (!ruleName || typeof ruleName !== 'string' || ruleName.trim() === '') {
             throw new Error('Rule name must be a non-empty string');
         }
-
         return {
+            priority: (priority && priority >= 0) ? priority : 0,
             ruleName: ruleName.trim(),
             match : (match && typeof match === 'object') ? match : {},
             apply : (apply && typeof apply === 'object') ? apply : {}
         };
+    }
+
+    /**
+     * Creates an array of MatchRule instances from an array of rule objects
+     *
+     * @param rules
+     */
+    static createRules<T>(rules: any[]): MatchRule<T>[] {
+        if (!Array.isArray(rules)) {
+            throw new Error('Rules must be an array');
+        }
+        return rules.map(rule => MatchRuleFactory.create<T>(rule));
     }
 }
