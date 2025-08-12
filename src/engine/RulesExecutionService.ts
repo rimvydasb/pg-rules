@@ -6,7 +6,7 @@ import {MatchRule} from "@/entities/MatchRule";
  * applyRules is the main method to apply multiple rules in a single transaction.
  * applyRules always applied given rules without considering previously applied rules.
  */
-export class PgRulesEngine {
+export class RulesExecutionService {
 
     /**
      * Additional field name in the target table to track applied rules.
@@ -17,7 +17,13 @@ export class PgRulesEngine {
      */
     private appliedRulesField: string | null = null;
 
-    constructor(private db: Kysely<any>) {
+    private db: Kysely<any>;
+
+    constructor(db: Kysely<any>) {
+        if (!db) {
+            throw new Error('Database connection is required');
+        }
+        this.db = db;
     }
 
     /**
@@ -32,7 +38,7 @@ export class PgRulesEngine {
      * Initialize the results table for rule application.
      * Creates {targetTable}Results if it does not exist, with the same schema as {targetTable} plus applied_rules.
      */
-    async createResultsTable(targetTableName: string, resultsTableName: string): Promise<void> {
+    private async createResultsTable(targetTableName: string, resultsTableName: string): Promise<void> {
         await sql`
             CREATE TABLE IF NOT EXISTS ${sql.ref(resultsTableName)}
             (
@@ -45,7 +51,7 @@ export class PgRulesEngine {
     /**
      * Reset the results table and copy data from the original table.
      */
-    async initialiseResultsTableData(targetTableName: string, resultsTableName: string): Promise<void> {
+    private async initialiseResultsTableData(targetTableName: string, resultsTableName: string): Promise<void> {
         await sql`TRUNCATE
         ${sql.ref(resultsTableName)}`.execute(this.db);
         await this.db.insertInto(resultsTableName).expression(

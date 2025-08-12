@@ -1,15 +1,15 @@
-import {createTestDatabase} from '@/test-database';
-import {PgRulesEngine} from './PgRulesEngine';
-import {User} from '@/database.types';
+import {createTestDatabase} from '@/test/test-database';
+import {RulesExecutionService} from './RulesExecutionService';
+import {User} from '@/test/database.types';
 import {MatchRuleFactory} from "@/entities/MatchRuleFactory";
 
 describe('PgRulesEngine', () => {
     let db: any;
-    let rulesEngine: PgRulesEngine;
+    let rulesEngine: RulesExecutionService;
 
     beforeEach(async () => {
         db = createTestDatabase();
-        rulesEngine = new PgRulesEngine(db);
+        rulesEngine = new RulesExecutionService(db);
 
         // Insert test users
         await db
@@ -364,7 +364,7 @@ describe('PgRulesEngine', () => {
         });
 
         it('should throw error when getRowsWithAppliedRules called without configuring appliedRulesField', async () => {
-            const engineWithoutField = new PgRulesEngine(db);
+            const engineWithoutField = new RulesExecutionService(db);
 
             await expect(engineWithoutField.getRowsWithAppliedRules('users')).rejects.toThrow(
                 'appliedRulesField is not configured. Use setAppliedRulesField() first.'
@@ -372,7 +372,7 @@ describe('PgRulesEngine', () => {
         });
 
         it('should throw error when clearAppliedRules called without configuring appliedRulesField', async () => {
-            const engineWithoutField = new PgRulesEngine(db);
+            const engineWithoutField = new RulesExecutionService(db);
 
             await expect(engineWithoutField.clearAppliedRules('users')).rejects.toThrow(
                 'appliedRulesField is not configured. Use setAppliedRulesField() first.'
@@ -474,7 +474,7 @@ describe('PgRulesEngine', () => {
 
         it('should work without appliedRulesField configured', async () => {
             // Create engine without setting appliedRulesField
-            const basicEngine = new PgRulesEngine(db);
+            const basicEngine = new RulesExecutionService(db);
 
             const rule = MatchRuleFactory.create({
                 ruleName: 'no-tracking-rule',

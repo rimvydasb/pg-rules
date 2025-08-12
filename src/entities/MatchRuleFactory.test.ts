@@ -1,4 +1,4 @@
-import { User } from '@/database.types';
+import { User } from '@/test/database.types';
 import {MatchRuleFactory} from "./MatchRuleFactory";
 
 describe('MatchRuleFactory', () => {

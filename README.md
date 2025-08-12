@@ -18,7 +18,7 @@ classDiagram
         apply : Pick<T>;
     }
     
-    class PgRulesEngine {
+    class RulesExecutionService {
         applyRules(rules: MatchRule<T>[], targetTable: string): Promise<integer>;
     }
 ```
