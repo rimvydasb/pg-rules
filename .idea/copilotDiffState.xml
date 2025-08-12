@@ -3,6 +3,15 @@
   <component name="CopilotDiffPersistence">
     <option name="pendingDiffs">
       <map>
+        <entry key="$PROJECT_DIR$/jest.config.js">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/jest.config.js" />
+              <option name="originalContent" value="module.exports = {&#10;  preset: 'ts-jest',&#10;  testEnvironment: 'node',&#10;  roots: ['&lt;rootDir&gt;/src'],&#10;  testMatch: [&#10;    '**/__tests__/**/*.+(ts|tsx|js)',&#10;    '**/*.(test|spec).+(ts|tsx|js)'&#10;  ],&#10;  transform: {&#10;    '^.+\\.(ts|tsx)$': 'ts-jest'&#10;  },&#10;  collectCoverageFrom: [&#10;    'src/**/*.{ts,tsx}',&#10;    '!src/**/*.d.ts',&#10;    '!src/**/*.test.{ts,tsx}',&#10;    '!src/**/*.spec.{ts,tsx}'&#10;  ],&#10;  coverageDirectory: 'coverage',&#10;  coverageReporters: [&#10;    'text',&#10;    'lcov',&#10;    'html'&#10;  ]&#10;};&#10;&#10;" />
+              <option name="updatedContent" value="module.exports = {&#10;  preset: 'ts-jest',&#10;  testEnvironment: 'node',&#10;  roots: ['&lt;rootDir&gt;/src'],&#10;  testMatch: [&#10;    '**/__tests__/**/*.+(ts|tsx|js)',&#10;    '**/*.(test|spec).+(ts|tsx|js)'&#10;  ],&#10;  transform: {&#10;    '^.+\\.(ts|tsx)$': 'ts-jest'&#10;  },&#10;  moduleNameMapper: {&#10;    '^@/(.*)$': '&lt;rootDir&gt;/src/$1'&#10;  },&#10;  collectCoverageFrom: [&#10;    'src/**/*.{ts,tsx}',&#10;    '!src/**/*.d.ts',&#10;    '!src/**/*.test.{ts,tsx}',&#10;    '!src/**/*.spec.{ts,tsx}'&#10;  ],&#10;  coverageDirectory: 'coverage',&#10;  coverageReporters: [&#10;    'text',&#10;    'lcov',&#10;    'html'&#10;  ]&#10;};" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
         <entry key="$PROJECT_DIR$/src/index.ts">
           <value>
             <PendingDiffInfo>
