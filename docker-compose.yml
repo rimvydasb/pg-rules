@@ -9,4 +9,4 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: test_db
     ports:
-      - "5435:5435"
+      - "5435:5432"

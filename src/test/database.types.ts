@@ -29,6 +29,7 @@ export interface PostTable {
 // Database interface
 export interface Database {
     users: UserTable;
+    usersResults: UserTable;
     posts: PostTable;
 }
 
