@@ -24,6 +24,23 @@ export function createTestDatabase(): Kysely<Database> {
             updated_at     TIMESTAMP   DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE TABLE IF NOT EXISTS "usersResults"
+        (
+            id             SERIAL PRIMARY KEY,
+            email          VARCHAR(255) NOT NULL,
+            name           VARCHAR(255) NOT NULL,
+            role           VARCHAR(50) DEFAULT 'guest',
+            status         VARCHAR(50),
+            age            INTEGER,
+            priority       INTEGER DEFAULT 0,
+            "isVerified"   BOOLEAN DEFAULT FALSE,
+            "appliedRules" JSONB,
+            phone          VARCHAR(50),
+            created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            applied_rules  text[] NOT NULL DEFAULT '{}'
+        );
+
         CREATE TABLE posts
         (
             id         SERIAL PRIMARY KEY,

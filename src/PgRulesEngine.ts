@@ -29,25 +29,60 @@ export class PgRulesEngine {
     }
 
     /**
-     * Apply multiple rules to a target table in a single transaction
+     * Initialize the results table for rule application.
+     * Creates {targetTable}Results if it does not exist, with the same schema as {targetTable} plus applied_rules.
+     */
+    async createResultsTable(targetTableName: string, resultsTableName: string): Promise<void> {
+        await sql`
+            CREATE TABLE IF NOT EXISTS ${sql.ref(resultsTableName)}
+            (
+                LIKE          ${sql.ref(targetTableName)} INCLUDING ALL,
+                applied_rules text [] NOT NULL DEFAULT '{}'
+            )
+        `.execute(this.db);
+    }
+
+    /**
+     * Reset the results table and copy data from the original table.
+     */
+    async initialiseResultsTableData(targetTableName: string, resultsTableName: string): Promise<void> {
+        await sql`TRUNCATE
+        ${sql.ref(resultsTableName)}`.execute(this.db);
+        await this.db.insertInto(resultsTableName).expression(
+            this.db.selectFrom(targetTableName).selectAll()
+        ).execute();
+    }
+
+    async resetResultsTableIfExists(targetTableName: string): Promise<string> {
+        const resultsTableName = `${targetTableName}Results`;
+        await this.db.transaction().execute(async (trx) => {
+            // Ensure results table exists and is initialized
+            await this.createResultsTable(targetTableName, resultsTableName);
+            await this.initialiseResultsTableData(targetTableName, resultsTableName);
+        });
+        return resultsTableName;
+    }
+
+    /**
+     * Apply multiple rules to a target table's results copy in a single transaction
      * @param rules Array of MatchRule objects to apply
-     * @param targetTable Name of the table to apply rules to
+     * @param resultsTableName Name of the table to apply rules to
      * @returns Promise that resolves to the total number of affected rows
      */
-    async applyRules<T>(rules: MatchRule<T>[], targetTable: string): Promise<number> {
+    async applyRules<T>(rules: MatchRule<T>[], resultsTableName: string): Promise<number> {
         if (!rules.length) {
             return 0;
         }
 
-        // Sort rules by priority (ascending), defaulting to 0 if not specified
-        const sortedRules = [...rules].sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
+        // Sort rules by priority (ascending)
+        const sortedRules = [...rules].sort((a, b) => a.priority - b.priority);
 
         return await this.db.transaction().execute(async (trx) => {
             let totalAffectedRows = 0;
 
             for (const rule of sortedRules) {
                 // Build the update query
-                let query = trx.updateTable(targetTable);
+                let query = trx.updateTable(resultsTableName);
 
                 // Add SET clause from apply object
                 const applyEntries = Object.entries(rule.apply);
@@ -79,7 +114,10 @@ export class PgRulesEngine {
                     if (typeof value === 'string') {
                         // Use PostgreSQL regex operator for case-sensitive string matching
                         //query = query.where(sql.ref(key), '~', value);
-                        query = query.where(sql<boolean>`regexp_like(${sql.ref(key)}, ${sql.val(value)})`)
+                        query = query.where(sql<boolean>`regexp_like(
+                        ${sql.ref(key)},
+                        ${sql.val(value)}
+                        )`)
                     } else {
                         // Use direct equality for non-string types
                         query = query.where(sql.ref(key), '=', value);
