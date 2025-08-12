@@ -1,7 +1,7 @@
-import {createTestDatabase} from './test-database';
+import {createTestDatabase} from '@/test-database';
 import {PgRulesEngine} from './PgRulesEngine';
-import {User} from './database.types';
-import {MatchRuleFactory} from "./MatchRuleFactory";
+import {User} from '@/database.types';
+import {MatchRuleFactory} from "@/entities/MatchRuleFactory";
 
 describe('PgRulesEngine', () => {
     let db: any;

@@ -1,5 +1,4 @@
-import { MatchRule } from './MatchRule';
-import { User } from './database.types';
+import { User } from '@/database.types';
 import {MatchRuleFactory} from "./MatchRuleFactory";
 
 describe('MatchRuleFactory', () => {

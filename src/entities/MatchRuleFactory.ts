@@ -1,4 +1,4 @@
-import {MatchRule} from "@/MatchRule";
+import {MatchRule} from "@/entities/MatchRule";
 
 export class MatchRuleFactory {
     /**

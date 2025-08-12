@@ -3,15 +3,6 @@
   <component name="CopilotDiffPersistence">
     <option name="pendingDiffs">
       <map>
-        <entry key="$PROJECT_DIR$/src/MatchRule.ts">
-          <value>
-            <PendingDiffInfo>
-              <option name="filePath" value="$PROJECT_DIR$/src/MatchRule.ts" />
-              <option name="originalContent" value="/**&#10; * Represents a match rule that can be applied to database records&#10; */&#10;export interface MatchRule&lt;T = any&gt; {&#10;&#10;    /**&#10;     * Optional priority of the rule.&#10;     * Rules with lower priority numbers will be applied first.&#10;     * If not specified, the default priority is 0.&#10;     */&#10;    readonly priority?: number;&#10;&#10;    /**&#10;     * Name of the rule, used for identification and logging.&#10;     * Rule name can be added to &quot;appliedRules&quot; field in the database to track which rules were applied.&#10;     */&#10;    readonly ruleName: string;&#10;&#10;    /**&#10;     * Conditions to match records against.&#10;     * Values will be matched as regex patterns if they are strings&#10;     * and direct equality for other types.&#10;     * For example, { &quot;category&quot;: &quot;Groceries|Food&quot; } will match records where category is either &quot;Groceries&quot; or &quot;Food&quot;.&#10;     */&#10;    readonly match: Partial&lt;T&gt;;&#10;&#10;    /**&#10;     * Changes to apply to matched records.&#10;     * This object will be used in the SET clause of the SQL UPDATE statement.&#10;     */&#10;    readonly apply: Partial&lt;T&gt;;&#10;}&#10;" />
-              <option name="updatedContent" value="/**&#10; * Represents a match rule that can be applied to database records&#10; */&#10;export interface MatchRule&lt;T = any&gt; {&#10;&#10;    /**&#10;     * Priority of the rule.&#10;     * Rules with lower priority numbers will be applied first.&#10;     * If not specified, the default priority is 0.&#10;     */&#10;    readonly priority: number;&#10;&#10;    /**&#10;     * Name of the rule, used for identification and logging.&#10;     * Rule name can be added to &quot;appliedRules&quot; field in the database to track which rules were applied.&#10;     */&#10;    readonly ruleName: string;&#10;&#10;    /**&#10;     * Conditions to match records against.&#10;     * Values will be matched as regex patterns if they are strings&#10;     * and direct equality for other types.&#10;     * For example, { &quot;category&quot;: &quot;Groceries|Food&quot; } will match records where category is either &quot;Groceries&quot; or &quot;Food&quot;.&#10;     */&#10;    readonly match: Partial&lt;T&gt;;&#10;&#10;    /**&#10;     * Changes to apply to matched records.&#10;     * This object will be used in the SET clause of the SQL UPDATE statement.&#10;     */&#10;    readonly apply: Partial&lt;T&gt;;&#10;}" />
-            </PendingDiffInfo>
-          </value>
-        </entry>
         <entry key="$PROJECT_DIR$/src/index.ts">
           <value>
             <PendingDiffInfo>

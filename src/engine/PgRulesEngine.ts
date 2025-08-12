@@ -1,5 +1,5 @@
 import {Kysely, sql} from 'kysely';
-import {MatchRule} from "@/MatchRule";
+import {MatchRule} from "@/entities/MatchRule";
 
 /**
  * PostgreSQL based rule engine that applies match rules to database tables.
