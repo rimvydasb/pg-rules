@@ -24,16 +24,6 @@ export async function setupTestSchema(db: Kysely<Database>): Promise<void> {
     await sql`DROP TABLE IF EXISTS "usersResults" CASCADE`.execute(db);
     await sql`DROP TABLE IF EXISTS users CASCADE`.execute(db);
 
-    // Create the regexp_like function that's used by the rules engine
-    await sql`
-        CREATE OR REPLACE FUNCTION regexp_like(text, text) 
-        RETURNS boolean AS $$
-        BEGIN
-            RETURN $1 ~ $2;
-        END;
-        $$ LANGUAGE plpgsql;
-    `.execute(db);
-
     // Create the schema
     await sql`
         CREATE TABLE users

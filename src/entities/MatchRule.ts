@@ -29,4 +29,9 @@ export interface MatchRule<T = any> {
      * This object will be used in the SET clause of the SQL UPDATE statement.
      */
     readonly apply: Partial<T>;
+
+    /**
+     * No further rules will be applied if this rule result is true.
+     */
+    readonly stopProcessingOtherRules: boolean;
 }

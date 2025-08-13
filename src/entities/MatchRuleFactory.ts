@@ -33,7 +33,10 @@ export class MatchRuleFactory {
             priority: (priority && priority >= 0) ? priority : 0,
             ruleName: ruleName.trim(),
             match : (match && typeof match === 'object') ? match : {},
-            apply : (apply && typeof apply === 'object') ? apply : {}
+            apply : (apply && typeof apply === 'object') ? apply : {},
+
+            // @Todo: not implemented yet
+            stopProcessingOtherRules: false
         };
     }
 

@@ -17,13 +17,16 @@ export class RulesExecutionService {
      */
     private appliedRulesField: string | null = null;
 
+    private regexpOperatorsSupported = true;
+
     private db: Kysely<any>;
 
-    constructor(db: Kysely<any>) {
+    constructor(db: Kysely<any>, regexpOperatorsSupported: boolean = true) {
         if (!db) {
             throw new Error('Database connection is required');
         }
         this.db = db;
+        this.regexpOperatorsSupported = regexpOperatorsSupported;
     }
 
     /**
@@ -118,12 +121,15 @@ export class RulesExecutionService {
 
                 for (const [key, value] of matchEntries) {
                     if (typeof value === 'string') {
-                        // Use PostgreSQL regex operator for case-sensitive string matching
-                        //query = query.where(sql.ref(key), '~', value);
-                        query = query.where(sql<boolean>`regexp_like(
-                        ${sql.ref(key)},
-                        ${sql.val(value)}
-                        )`)
+                        // Use PostgresSQL regex operator for case-sensitive string matching
+                        if (this.regexpOperatorsSupported) {
+                            query = query.where(sql.ref(key), '~', sql.val(value));
+                        } else {
+                            query = query.where(sql<boolean>`regexp_like(
+                            ${sql.ref(key)},
+                            ${sql.val(value)}
+                            )`)
+                        }
                     } else {
                         // Use direct equality for non-string types
                         query = query.where(sql.ref(key), '=', value);
