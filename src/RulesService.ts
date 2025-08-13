@@ -13,8 +13,13 @@ export class RulesService {
     public async processRules(rules: MatchRule[], targetTableName: string): Promise<number> {
         const execution = new RulesExecutionService(this.db);
         const resultsTableName = await execution.resetResultsTableIfExists(targetTableName);
+        await this.doPreProcessRules(resultsTableName);
         const executedRules = await execution.applyRules(rules, resultsTableName);
 
         return executedRules;
+    }
+
+    public async doPreProcessRules(resultsTableName: string): Promise<void> {
+        // extension point to perform actions on results table
     }
 }
