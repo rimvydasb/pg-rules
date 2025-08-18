@@ -110,9 +110,16 @@ export class RulesExecutionService {
 
                 // Add appliedRulesField tracking if configured
                 if (this.appliedRulesField) {
-                    // Use PostgreSQL's JSON_ARRAY_APPEND to add the rule name to the JSON array
-                    /*language=TEXT*/
-                    updateObject[this.appliedRulesField] = sql`JSON_ARRAY_APPEND(COALESCE(${sql.ref(this.appliedRulesField)}, JSON_ARRAY()), '$', ${rule.ruleName})`;
+                    if (this.useRegexpOperators) {
+                        // PostgreSQL: Use jsonb operations with explicit type casting
+                        updateObject[this.appliedRulesField] = sql`
+                            COALESCE(${sql.ref(this.appliedRulesField)}, '[]'::jsonb)
+                            || ${sql.val(JSON.stringify([rule.ruleName]))}::jsonb
+                        `;
+                    } else {
+                        // SQLite: Use JSON_ARRAY_APPEND function (mocked in test setup)
+                        updateObject[this.appliedRulesField] = sql`JSON_ARRAY_APPEND(COALESCE(${sql.ref(this.appliedRulesField)}, JSON_ARRAY()), '$', ${rule.ruleName})`;
+                    }
                 }
 
                 query = query.set(updateObject);
@@ -163,8 +170,13 @@ export class RulesExecutionService {
         }
 
         const updateObject: Record<string, any> = {};
-        /*language=TEXT*/
-        updateObject[this.appliedRulesField] = sql`JSON_ARRAY()`;
+        if (this.useRegexpOperators) {
+            // PostgreSQL: Use empty JSON array
+            updateObject[this.appliedRulesField] = sql`'[]'::jsonb`;
+        } else {
+            // SQLite: Use JSON_ARRAY() function (mocked in test setup)
+            updateObject[this.appliedRulesField] = sql`JSON_ARRAY()`;
+        }
 
         let query = this.db.updateTable(targetTable).set(updateObject);
 

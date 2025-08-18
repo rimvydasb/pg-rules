@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "test:pg": "USE_PG_TESTS=1 jest",
+    "test:pg": "USE_PG_TESTS=1 jest --runInBand",
     "lint": "eslint src/**/*.ts"
   },
   "keywords": ["postgresql", "rules", "typescript"],

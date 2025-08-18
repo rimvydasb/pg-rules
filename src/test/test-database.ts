@@ -76,7 +76,7 @@ async function createSchema(db: Kysely<Database>): Promise<void> {
         .addColumn('age', 'integer')
         .addColumn('priority', 'integer', col => col.defaultTo(0))
         .addColumn('isVerified', 'boolean', col => col.defaultTo(false))
-        .addColumn('appliedRules', 'json')
+        .addColumn('appliedRules', usePg ? 'jsonb' : 'json')
         .addColumn('phone', 'text')
         .addColumn('created_at', 'timestamp', col => col.defaultTo(sql`CURRENT_TIMESTAMP`))
         .addColumn('updated_at', 'timestamp', col => col.defaultTo(sql`CURRENT_TIMESTAMP`))
