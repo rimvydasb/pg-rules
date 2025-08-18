@@ -58,9 +58,17 @@ export async function createTestDb(): Promise<Kysely<Database>> {
 }
 
 async function createSchema(db: Kysely<Database>): Promise<void> {
+    const usePg = !!process.env.USE_PG_TESTS
+
     await db.schema
         .createTable('users')
-        .addColumn('id', 'integer', col => col.primaryKey().autoIncrement())
+        .addColumn('id', 'integer', col => {
+            if (usePg) {
+                return col.primaryKey().generatedAlwaysAsIdentity()
+            } else {
+                return col.primaryKey().autoIncrement()
+            }
+        })
         .addColumn('email', 'text', col => col.notNull().unique())
         .addColumn('name', 'text', col => col.notNull())
         .addColumn('role', 'text', col => col.defaultTo('guest'))
@@ -76,7 +84,13 @@ async function createSchema(db: Kysely<Database>): Promise<void> {
 
     await db.schema
         .createTable('posts')
-        .addColumn('id', 'integer', col => col.primaryKey().autoIncrement())
+        .addColumn('id', 'integer', col => {
+            if (usePg) {
+                return col.primaryKey().generatedAlwaysAsIdentity()
+            } else {
+                return col.primaryKey().autoIncrement()
+            }
+        })
         .addColumn('title', 'text', col => col.notNull())
         .addColumn('content', 'text', col => col.notNull())
         .addColumn('author_id', 'integer', col => col.references('users.id').onDelete('cascade'))

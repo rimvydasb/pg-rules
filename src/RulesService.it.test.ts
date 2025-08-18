@@ -100,7 +100,7 @@ describeIfPg('RulesService - Real Database Integration Tests', () => {
 
             // Verify the results table was created and populated
             const results = await db
-                .selectFrom('usersResults')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('role', '=', 'premium')
                 .execute();
@@ -141,7 +141,7 @@ describeIfPg('RulesService - Real Database Integration Tests', () => {
 
             // Check results table
             const results = await db
-                .selectFrom('usersResults')
+                .selectFrom('users_results')
                 .selectAll()
                 .orderBy('email')
                 .execute();
@@ -170,7 +170,7 @@ describeIfPg('RulesService - Real Database Integration Tests', () => {
             expect(affectedRows).toBe(TEST_USERS.length); // All test users have @example.com emails
 
             const results = await db
-                .selectFrom('usersResults')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('status', '=', 'verified-domain')
                 .execute();
@@ -195,7 +195,7 @@ describeIfPg('RulesService - Real Database Integration Tests', () => {
             expect(affectedRows).toBe(1); // Only Jane matches both conditions
 
             const results = await db
-                .selectFrom('usersResults')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('priority', '=', 0)
                 .execute();
@@ -211,7 +211,7 @@ describeIfPg('RulesService - Real Database Integration Tests', () => {
 
             // Results table should still be created but empty
             const results = await db
-                .selectFrom('usersResults')
+                .selectFrom('users_results')
                 .selectAll()
                 .execute();
 
@@ -232,7 +232,7 @@ describeIfPg('RulesService - Real Database Integration Tests', () => {
             expect(affectedRows).toBe(0);
 
             const results = await db
-                .selectFrom('usersResults')
+                .selectFrom('users_results')
                 .selectAll()
                 .execute();
 
@@ -266,7 +266,7 @@ describeIfPg('RulesService - Real Database Integration Tests', () => {
             expect(affectedRows).toBe(3); // Bob (inactive), Charlie (pending), Bob again (age 35)
 
             const results = await db
-                .selectFrom('usersResults')
+                .selectFrom('users_results')
                 .selectAll()
                 .orderBy('email')
                 .execute();
@@ -294,7 +294,7 @@ describeIfPg('RulesService - Real Database Integration Tests', () => {
             await rulesService.processRules(rules, 'users');
 
             const result = await db
-                .selectFrom('usersResults')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('email', '=', 'john@example.com')
                 .executeTakeFirst();
@@ -320,7 +320,7 @@ describeIfPg('RulesService - Real Database Integration Tests', () => {
             expect(affectedRows).toBe(3); // John, Bob, Charlie are users
 
             const results = await db
-                .selectFrom('usersResults')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('role', '=', 'user')
                 .execute();
@@ -345,7 +345,7 @@ describeIfPg('RulesService - Real Database Integration Tests', () => {
             expect(affectedRows).toBe(4);
 
             const results = await db
-                .selectFrom('usersResults')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('status', '=', 'active')
                 .execute();

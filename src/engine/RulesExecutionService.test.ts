@@ -9,7 +9,7 @@ describe('PgRulesEngine', () => {
 
     beforeEach(async () => {
         db = await createTestDb();
-        rulesEngine = new RulesExecutionService(db, false);
+        rulesEngine = new RulesExecutionService(db);
 
         // Insert test users
         await db
@@ -474,7 +474,7 @@ describe('PgRulesEngine', () => {
 
         it('should work without appliedRulesField configured', async () => {
             // Create engine without setting appliedRulesField
-            const basicEngine = new RulesExecutionService(db, false);
+            const basicEngine = new RulesExecutionService(db);
 
             const rule = MatchRuleFactory.create({
                 ruleName: 'no-tracking-rule',

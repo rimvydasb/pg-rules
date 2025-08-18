@@ -17,16 +17,21 @@ export class RulesExecutionService {
      */
     private appliedRulesField: string | null = null;
 
-    private regexpOperatorsSupported = true;
+    private readonly useRegexpOperators : boolean;
 
-    private db: Kysely<any>;
+    private readonly db: Kysely<any>;
 
-    constructor(db: Kysely<any>, regexpOperatorsSupported: boolean = true) {
+    constructor(db: Kysely<any>) {
         if (!db) {
             throw new Error('Database connection is required');
         }
         this.db = db;
-        this.regexpOperatorsSupported = regexpOperatorsSupported;
+
+        const adapterName = (db as any).getExecutor().adapter.constructor.name;
+        this.useRegexpOperators =  adapterName === 'PostgresAdapter';
+        if (!this.useRegexpOperators) {
+            console.warn('Using regexp_like for string matching for ${adapterName}. This may affect performance.');
+        }
     }
 
     /**
@@ -122,7 +127,7 @@ export class RulesExecutionService {
                 for (const [key, value] of matchEntries) {
                     if (typeof value === 'string') {
                         // Use PostgresSQL regex operator for case-sensitive string matching
-                        if (this.regexpOperatorsSupported) {
+                        if (this.useRegexpOperators) {
                             query = query.where(sql.ref(key), '~', sql.val(value));
                         } else {
                             query = query.where(sql<boolean>`regexp_like(
