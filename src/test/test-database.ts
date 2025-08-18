@@ -28,8 +28,10 @@ export async function createTestDb(): Promise<Kysely<Database>> {
         if (result.rows.length === 0) {
             throw new Error('Failed to connect to the Postgres test database')
         }
-        await sql`DROP SCHEMA IF EXISTS test CASCADE`.execute(db)
-        await sql`CREATE SCHEMA test`.execute(db)
+        await sql`DROP
+        SCHEMA IF EXISTS test CASCADE`.execute(db)
+        await sql`CREATE
+        SCHEMA test`.execute(db)
         await sql`SET search_path TO test`.execute(db)
         await createSchema(db)
         return db
@@ -60,27 +62,31 @@ export async function createTestDb(): Promise<Kysely<Database>> {
 async function createSchema(db: Kysely<Database>): Promise<void> {
     const usePg = !!process.env.USE_PG_TESTS
 
-    await db.schema
-        .createTable('users')
-        .addColumn('id', 'integer', col => {
-            if (usePg) {
-                return col.primaryKey().generatedAlwaysAsIdentity()
-            } else {
-                return col.primaryKey().autoIncrement()
-            }
-        })
-        .addColumn('email', 'text', col => col.notNull().unique())
-        .addColumn('name', 'text', col => col.notNull())
-        .addColumn('role', 'text', col => col.defaultTo('guest'))
-        .addColumn('status', 'text')
-        .addColumn('age', 'integer')
-        .addColumn('priority', 'integer', col => col.defaultTo(0))
-        .addColumn('isVerified', 'boolean', col => col.defaultTo(false))
-        .addColumn('appliedRules', usePg ? 'jsonb' : 'json')
-        .addColumn('phone', 'text')
-        .addColumn('created_at', 'timestamp', col => col.defaultTo(sql`CURRENT_TIMESTAMP`))
-        .addColumn('updated_at', 'timestamp', col => col.defaultTo(sql`CURRENT_TIMESTAMP`))
-        .execute()
+    for (const usersTable of ['users', 'users_results']) {
+        await db.schema
+            .createTable(usersTable)
+            .addColumn('id', 'integer', col => {
+                if (usePg) {
+                    return col.primaryKey().generatedAlwaysAsIdentity()
+                } else {
+                    return col.primaryKey().autoIncrement()
+                }
+            })
+            .addColumn('email', 'text', col => col.notNull().unique())
+            .addColumn('name', 'text', col => col.notNull())
+            .addColumn('role', 'text', col => col.defaultTo('guest'))
+            .addColumn('status', 'text')
+            .addColumn('age', 'integer')
+            .addColumn('priority', 'integer', col => col.defaultTo(0))
+            .addColumn('isVerified', 'boolean', col => col.defaultTo(false))
+            .addColumn('appliedRules', usePg ? 'jsonb' : 'json')
+            .addColumn('phone', 'text')
+            .addColumn('created_at', 'timestamp', col => col.defaultTo(sql`CURRENT_TIMESTAMP`))
+            .addColumn('updated_at', 'timestamp', col => col.defaultTo(sql`CURRENT_TIMESTAMP`))
+            .execute();
+
+        // @Todo: add applied_rules text [] NOT NULL DEFAULT '{}'
+    }
 
     await db.schema
         .createTable('posts')

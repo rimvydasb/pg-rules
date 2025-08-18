@@ -17,7 +17,7 @@ export class RulesExecutionService {
      */
     private appliedRulesField: string | null = null;
 
-    private readonly useRegexpOperators : boolean;
+    private readonly isPostgres : boolean;
 
     private readonly db: Kysely<any>;
 
@@ -28,8 +28,8 @@ export class RulesExecutionService {
         this.db = db;
 
         const adapterName = (db as any).getExecutor().adapter.constructor.name;
-        this.useRegexpOperators =  adapterName === 'PostgresAdapter';
-        if (!this.useRegexpOperators) {
+        this.isPostgres =  adapterName === 'PostgresAdapter';
+        if (!this.isPostgres) {
             console.warn('Using regexp_like for string matching for ${adapterName}. This may affect performance.');
         }
     }
@@ -42,39 +42,48 @@ export class RulesExecutionService {
         this.appliedRulesField = fieldName.trim();
     }
 
-    /**
-     * Initialize the results table for rule application.
-     * Creates {targetTable}Results if it does not exist, with the same schema as {targetTable} plus applied_rules.
-     */
-    private async createResultsTable(targetTableName: string, resultsTableName: string): Promise<void> {
-        await sql`
-            CREATE TABLE IF NOT EXISTS ${sql.ref(resultsTableName)}
-            (
-                LIKE          ${sql.ref(targetTableName)} INCLUDING ALL,
-                applied_rules text [] NOT NULL DEFAULT '{}'
-            )
-        `.execute(this.db);
+    async resetResultsTableIfExists(targetTableName: string): Promise<string> {
+        const resultsTableName = `${targetTableName}_results`;
+
+        // Use the proper data initialization method that handles identity columns
+        await this.initialiseResultsTableData(targetTableName, resultsTableName);
+
+        return resultsTableName;
     }
 
     /**
      * Reset the results table and copy data from the original table.
      */
     private async initialiseResultsTableData(targetTableName: string, resultsTableName: string): Promise<void> {
-        await sql`TRUNCATE
-        ${sql.ref(resultsTableName)}`.execute(this.db);
-        await this.db.insertInto(resultsTableName).expression(
-            this.db.selectFrom(targetTableName).selectAll()
-        ).execute();
-    }
+        await sql`TRUNCATE ${sql.ref(resultsTableName)}`.execute(this.db);
 
-    async resetResultsTableIfExists(targetTableName: string): Promise<string> {
-        const resultsTableName = `${targetTableName}Results`;
-        await this.db.transaction().execute(async (trx) => {
-            // Ensure results table exists and is initialized
-            await this.createResultsTable(targetTableName, resultsTableName);
-            await this.initialiseResultsTableData(targetTableName, resultsTableName);
-        });
-        return resultsTableName;
+        if (this.isPostgres) {
+            // PostgreSQL: Exclude identity columns when copying data
+            // Get all non-identity columns from the source table
+            const sourceColumns = await sql<{column_name: string}>`
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = ${targetTableName} 
+                AND table_schema = current_schema()
+                AND is_identity = 'NO'
+                ORDER BY ordinal_position
+            `.execute(this.db);
+
+            const columnNames = sourceColumns.rows.map(row => row.column_name);
+
+            // Insert data excluding identity columns (PostgreSQL will auto-generate IDs)
+            await this.db.insertInto(resultsTableName)
+                .columns(columnNames)
+                .expression(
+                    this.db.selectFrom(targetTableName).select(columnNames)
+                )
+                .execute();
+        } else {
+            // SQLite: Use the original approach (works fine with autoincrement)
+            await this.db.insertInto(resultsTableName).expression(
+                this.db.selectFrom(targetTableName).selectAll()
+            ).execute();
+        }
     }
 
     /**
@@ -110,7 +119,7 @@ export class RulesExecutionService {
 
                 // Add appliedRulesField tracking if configured
                 if (this.appliedRulesField) {
-                    if (this.useRegexpOperators) {
+                    if (this.isPostgres) {
                         // PostgreSQL: Use jsonb operations with explicit type casting
                         updateObject[this.appliedRulesField] = sql`
                             COALESCE(${sql.ref(this.appliedRulesField)}, '[]'::jsonb)
@@ -134,7 +143,7 @@ export class RulesExecutionService {
                 for (const [key, value] of matchEntries) {
                     if (typeof value === 'string') {
                         // Use PostgresSQL regex operator for case-sensitive string matching
-                        if (this.useRegexpOperators) {
+                        if (this.isPostgres) {
                             query = query.where(sql.ref(key), '~', sql.val(value));
                         } else {
                             query = query.where(sql<boolean>`regexp_like(
@@ -170,7 +179,7 @@ export class RulesExecutionService {
         }
 
         const updateObject: Record<string, any> = {};
-        if (this.useRegexpOperators) {
+        if (this.isPostgres) {
             // PostgreSQL: Use empty JSON array
             updateObject[this.appliedRulesField] = sql`'[]'::jsonb`;
         } else {
