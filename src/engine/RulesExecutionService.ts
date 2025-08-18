@@ -176,50 +176,22 @@ export class RulesExecutionService {
     }
 
     private normalizeAppliedRules(value: unknown): string[] {
-        const normalizeOne = (v: unknown): string => {
-            if (v == null) return '';
-
-            // If it's already a JS string, try to JSON-parse it once to strip quotes
-            if (typeof v === 'string') {
-                // Fast path: JSON string literal like "\"track-rule\"" or '"track-rule"'
-                if (v.length >= 2 && v.startsWith('"') && v.endsWith('"')) {
-                    try {
-                        return JSON.parse(v);
-                    } catch { /* fall through */
-                    }
-                    return v.slice(1, -1);
-                }
-                // Could also be a JSON array/object as string (unlikely here but safe)
-                try {
-                    const parsed = JSON.parse(v);
-                    if (typeof parsed === 'string') return parsed;     // '"track-rule"' -> track-rule
-                    if (Array.isArray(parsed)) {
-                        // If someone stored '["a","b"]' as a string, flatten one level
-                        return parsed.map(x => String(x)).join(',');
-                    }
-                    return String(parsed);
-                } catch {
-                    return v; // plain string like 'track-rule'
-                }
-            }
-
-            // If pg-mem gave us a JS scalar
-            if (Array.isArray(v)) {
-                // Shouldn't happen here (handled in outer branch), but guard anyway
-                return v.map(x => String(x)).join(',');
-            }
-            return String(v);
-        };
-
         if (value == null) return [];
-
-        // pg-mem jsonb often arrives as real JS arrays
-        if (Array.isArray(value)) {
-            return value.map(normalizeOne);
+        if (typeof value === 'string') {
+            try {
+                const parsed = JSON.parse(value);
+                if (Array.isArray(parsed)) {
+                    return parsed.map(v => String(v));
+                }
+                return [String(parsed)];
+            } catch {
+                return [value];
+            }
         }
-
-        // Single value paths: wrap into array
-        return [normalizeOne(value)];
+        if (Array.isArray(value)) {
+            return value.map(v => String(v));
+        }
+        return [String(value)];
     }
 
     /**

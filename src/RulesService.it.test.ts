@@ -1,5 +1,5 @@
 import {RulesService} from './RulesService';
-import {createRealTestDatabase, setupTestSchema, cleanupTestDatabase} from './test/real-database';
+import {createTestDb} from './test/test-database';
 import {MatchRuleFactory} from './entities/MatchRuleFactory';
 import {Kysely} from 'kysely';
 import {Database, User, NewUser} from './test/database.types';
@@ -57,25 +57,24 @@ const TEST_USERS: NewUser[] = [
     }
 ]
 
-describe('RulesService - Real Database Integration Tests', () => {
+const describeIfPg = process.env.USE_PG_TESTS ? describe : describe.skip;
+
+describeIfPg('RulesService - Real Database Integration Tests', () => {
     let db: Kysely<Database>;
     let rulesService: RulesService;
 
     beforeAll(async () => {
-        // Start the database and set up schema
-        db = createRealTestDatabase();
-        await setupTestSchema(db);
+        db = await createTestDb();
         rulesService = new RulesService(db);
     }, 30000); // 30 second timeout for database setup
 
     afterAll(async () => {
-        await cleanupTestDatabase(db);
+        await db.destroy();
     });
 
     beforeEach(async () => {
         // Clean tables before each test
         await db.deleteFrom('posts').execute();
-        await db.deleteFrom('usersResults').execute();
         await db.deleteFrom('users').execute();
 
         // Insert test data
@@ -361,7 +360,7 @@ describe('RulesService - Real Database Integration Tests', () => {
     describe('Error handling', () => {
         xit('should handle database connection errors gracefully', async () => {
             // Create a service with invalid database connection
-            const invalidDb = createRealTestDatabase();
+            const invalidDb = await createTestDb();
             await invalidDb.destroy(); // Close the connection
 
             const invalidService = new RulesService(invalidDb);
