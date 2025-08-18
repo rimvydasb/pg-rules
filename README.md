@@ -127,7 +127,9 @@ nvm alias default 24
 
 ### Testing
 
-- Quick SQLite Tests: `npm test`
+Use standard Jest testing for a quick SQLite Tests: `npm test`
 
-- PostgreSQL Tests: ensure PostgreSQL is running and accessible `docker compose up -d`. 
-Run PostgreSQL tests: `npm test:pg`
+#### PostgreSQL Tests
+
+1. Ensure PostgreSQL is running and accessible: `docker compose up -d`. 
+2. Run PostgreSQL tests: `npm test:pg`
