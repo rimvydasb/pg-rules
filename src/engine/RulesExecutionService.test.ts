@@ -1,4 +1,4 @@
-import {createTestDatabase} from '@/test/test-database';
+import {createTestDb} from '@/test/test-database';
 import {RulesExecutionService} from './RulesExecutionService';
 import {User} from '@/test/database.types';
 import {MatchRuleFactory} from "@/entities/MatchRuleFactory";
@@ -8,7 +8,7 @@ describe('PgRulesEngine', () => {
     let rulesEngine: RulesExecutionService;
 
     beforeEach(async () => {
-        db = createTestDatabase();
+        db = await createTestDb();
         rulesEngine = new RulesExecutionService(db, false);
 
         // Insert test users
@@ -619,16 +619,16 @@ describe('PgRulesEngine', () => {
 
         it('should use direct equality for non-string values', async () => {
             // Set test data
-            await db.updateTable('users').set({ age: 25, isVerified: true }).where('email', '=', 'john@example.com').execute();
-            await db.updateTable('users').set({ age: 30, isVerified: false }).where('email', '=', 'jane@example.com').execute();
-            await db.updateTable('users').set({ age: 25, isVerified: true }).where('email', '=', 'bob@example.com').execute();
+            await db.updateTable('users').set({ age: 25, isVerified: 1 }).where('email', '=', 'john@example.com').execute();
+            await db.updateTable('users').set({ age: 30, isVerified: 0 }).where('email', '=', 'jane@example.com').execute();
+            await db.updateTable('users').set({ age: 25, isVerified: 1 }).where('email', '=', 'bob@example.com').execute();
 
             const rule = MatchRuleFactory.createRules([
                 {
                     ruleName: 'non-string-rule',
                     match: {
                         age: 25,
-                        isVerified: true
+                        isVerified: 1
                     },
                     apply: { name: 'Non-String Match' }
                 }
@@ -645,7 +645,7 @@ describe('PgRulesEngine', () => {
                 .execute();
 
             expect(updatedUsers).toHaveLength(2);
-            expect(updatedUsers.every((u: any) => u.age === 25 && u.isVerified === true)).toBe(true);
+            expect(updatedUsers.every((u: any) => u.age === 25 && u.isVerified === 1)).toBe(true);
         });
 
         it('should handle mixed string and non-string conditions', async () => {
