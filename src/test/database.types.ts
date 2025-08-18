@@ -16,6 +16,10 @@ export interface UserTable {
     updated_at: Generated<Date>;
 }
 
+export interface UserResultsTable extends UserTable {
+    applied_rules?: string[];
+}
+
 export interface PostTable {
     id: Generated<number>;
     title: string;
@@ -29,7 +33,7 @@ export interface PostTable {
 // Database interface
 export interface Database {
     users: UserTable;
-    users_results: UserTable;
+    users_results: UserResultsTable;
     posts: PostTable;
 }
 

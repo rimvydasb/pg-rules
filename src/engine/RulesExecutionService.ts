@@ -15,9 +15,9 @@ export class RulesExecutionService {
      *
      * @private
      */
-    private appliedRulesField: string | null = null;
+    private appliedRulesField: string = "applied_rules";
 
-    private readonly isPostgres : boolean;
+    private readonly isPostgres: boolean;
 
     private readonly db: Kysely<any>;
 
@@ -28,18 +28,10 @@ export class RulesExecutionService {
         this.db = db;
 
         const adapterName = (db as any).getExecutor().adapter.constructor.name;
-        this.isPostgres =  adapterName === 'PostgresAdapter';
+        this.isPostgres = adapterName === 'PostgresAdapter';
         if (!this.isPostgres) {
             console.warn('Using regexp_like for string matching for ${adapterName}. This may affect performance.');
         }
-    }
-
-    /**
-     * Set the field name to track applied rules
-     * @param fieldName Name of the field to store applied rules
-     */
-    setAppliedRulesField(fieldName: string): void {
-        this.appliedRulesField = fieldName.trim();
     }
 
     async resetResultsTableIfExists(targetTableName: string): Promise<string> {
@@ -55,17 +47,18 @@ export class RulesExecutionService {
      * Reset the results table and copy data from the original table.
      */
     private async initialiseResultsTableData(targetTableName: string, resultsTableName: string): Promise<void> {
-        await sql`TRUNCATE ${sql.ref(resultsTableName)}`.execute(this.db);
+        await sql`TRUNCATE
+        ${sql.ref(resultsTableName)}`.execute(this.db);
 
         if (this.isPostgres) {
             // PostgreSQL: Exclude identity columns when copying data
             // Get all non-identity columns from the source table
-            const sourceColumns = await sql<{column_name: string}>`
-                SELECT column_name 
-                FROM information_schema.columns 
-                WHERE table_name = ${targetTableName} 
-                AND table_schema = current_schema()
-                AND is_identity = 'NO'
+            const sourceColumns = await sql<{ column_name: string }>`
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name = ${targetTableName}
+                  AND table_schema = current_schema()
+                  AND is_identity = 'NO'
                 ORDER BY ordinal_position
             `.execute(this.db);
 
@@ -121,28 +114,29 @@ export class RulesExecutionService {
                 if (this.appliedRulesField) {
                     if (this.isPostgres) {
                         // PostgreSQL: Use jsonb operations with explicit type casting
-                        updateObject[this.appliedRulesField] = sql`
-                            COALESCE(${sql.ref(this.appliedRulesField)}, '[]'::jsonb)
-                            || ${sql.val(JSON.stringify([rule.ruleName]))}::jsonb
-                        `;
+                        // @formatter:off
+                        /*language=TEXT*/
+                        updateObject[this.appliedRulesField] = sql`COALESCE(${sql.ref(this.appliedRulesField)}, '[]'::jsonb) || ${sql.val(JSON.stringify([rule.ruleName]))}::jsonb`;
+                        // @formatter:on
                     } else {
                         // SQLite: Use JSON_ARRAY_APPEND function (mocked in test setup)
+                        // @formatter:off
+                        /*language=TEXT*/
                         updateObject[this.appliedRulesField] = sql`JSON_ARRAY_APPEND(COALESCE(${sql.ref(this.appliedRulesField)}, JSON_ARRAY()), '$', ${rule.ruleName})`;
+                        // @formatter:on
                     }
                 }
 
                 query = query.set(updateObject);
 
-                // Add WHERE clause from match object
                 const matchEntries = Object.entries(rule.match);
                 if (matchEntries.length === 0) {
                     console.warn(`Rule "${rule.ruleName}" has no match conditions, skipping...`);
-                    continue; // Skip rules with no match conditions
+                    continue;
                 }
 
                 for (const [key, value] of matchEntries) {
                     if (typeof value === 'string') {
-                        // Use PostgresSQL regex operator for case-sensitive string matching
                         if (this.isPostgres) {
                             query = query.where(sql.ref(key), '~', sql.val(value));
                         } else {
@@ -152,7 +146,6 @@ export class RulesExecutionService {
                             )`)
                         }
                     } else {
-                        // Use direct equality for non-string types
                         query = query.where(sql.ref(key), '=', value);
                     }
                 }
@@ -227,7 +220,7 @@ export class RulesExecutionService {
      * @returns Promise that resolves to an array of rows with applied rules
      */
     async getRowsWithAppliedRules<T>(targetTable: string, whereConditions?: Partial<T>): Promise<(T & {
-        appliedRules?: string[]
+        applied_rules?: string[]
     })[]> {
         if (!this.appliedRulesField) {
             throw new Error('appliedRulesField is not configured. Use setAppliedRulesField() first.');

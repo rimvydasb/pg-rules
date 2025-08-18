@@ -11,7 +11,7 @@ PostgreSQL based rule engine
 
 ### How it works?
 
-1. Data is copied to *Results table from the target table
+1. Data is copied to *_results table from the target table
 2. Rules are transformed into SQL queries using `kysely`
 3. Queries are executed in the database based on match conditions: `UPDATE {results_table} SET {apply} WHERE {match}`
 4. All queries are executed in a single transaction

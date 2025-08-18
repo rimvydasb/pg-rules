@@ -63,7 +63,7 @@ async function createSchema(db: Kysely<Database>): Promise<void> {
     const usePg = !!process.env.USE_PG_TESTS
 
     for (const usersTable of ['users', 'users_results']) {
-        await db.schema
+        const baseSchema = db.schema
             .createTable(usersTable)
             .addColumn('id', 'integer', col => {
                 if (usePg) {
@@ -79,13 +79,21 @@ async function createSchema(db: Kysely<Database>): Promise<void> {
             .addColumn('age', 'integer')
             .addColumn('priority', 'integer', col => col.defaultTo(0))
             .addColumn('isVerified', 'boolean', col => col.defaultTo(false))
-            .addColumn('appliedRules', usePg ? 'jsonb' : 'json')
             .addColumn('phone', 'text')
             .addColumn('created_at', 'timestamp', col => col.defaultTo(sql`CURRENT_TIMESTAMP`))
-            .addColumn('updated_at', 'timestamp', col => col.defaultTo(sql`CURRENT_TIMESTAMP`))
-            .execute();
+            .addColumn('updated_at', 'timestamp', col => col.defaultTo(sql`CURRENT_TIMESTAMP`));
 
-        // @Todo: add applied_rules text [] NOT NULL DEFAULT '{}'
+        if (usersTable === 'users') {
+            await baseSchema.execute();
+        }
+
+        if (usersTable === 'users_results') {
+            // must be empty array as default. I know that in Postgres it is set as []::jsonb or smth like that
+            const defaultBuilder = usePg ? sql`'[]'::jsonb` : sql`json_array()`;
+            await baseSchema
+                .addColumn('applied_rules', usePg ? 'jsonb' : 'json', col => col.defaultTo(defaultBuilder))
+                .execute();
+        }
     }
 
     await db.schema

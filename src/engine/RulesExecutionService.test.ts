@@ -15,7 +15,7 @@ describe('PgRulesEngine', () => {
 
         // Insert test users
         await db
-            .insertInto('users')
+            .insertInto('users_results')
             .values([
                 {email: 'john@example.com', name: 'John Doe'},
                 {email: 'jane@example.com', name: 'Jane Smith'},
@@ -34,13 +34,13 @@ describe('PgRulesEngine', () => {
                 apply: {name: 'John Updated'}
             });
 
-            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+            const affectedRows = await rulesEngine.applyRules([rule], 'users_results');
 
             expect(affectedRows).toBe(1);
 
             // Verify the update was applied
             const updatedUser = await db
-                .selectFrom('users')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('email', '=', 'john@example.com')
                 .executeTakeFirst();
@@ -62,13 +62,13 @@ describe('PgRulesEngine', () => {
                 },
             ]);
 
-            const affectedRows = await rulesEngine.applyRules(rules, 'users');
+            const affectedRows = await rulesEngine.applyRules(rules, 'users_results');
 
             expect(affectedRows).toBe(2);
 
             // Verify both updates were applied
             const users = await db
-                .selectFrom('users')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('email', 'in', ['john@example.com', 'jane@example.com'])
                 .execute();
@@ -81,7 +81,7 @@ describe('PgRulesEngine', () => {
         it('should handle rules with multiple match conditions', async () => {
             // First, update one user to have a specific name
             await db
-                .updateTable('users')
+                .updateTable('users_results')
                 .set({name: 'Target User'})
                 .where('email', '=', 'bob@example.com')
                 .execute();
@@ -92,12 +92,12 @@ describe('PgRulesEngine', () => {
                 apply: {name: 'Updated Target User'}
             });
 
-            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+            const affectedRows = await rulesEngine.applyRules([rule], 'users_results');
 
             expect(affectedRows).toBe(1);
 
             const updatedUser = await db
-                .selectFrom('users')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('email', '=', 'bob@example.com')
                 .executeTakeFirst();
@@ -112,13 +112,13 @@ describe('PgRulesEngine', () => {
                 apply: {name: 'Should Not Update'}
             });
 
-            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+            const affectedRows = await rulesEngine.applyRules([rule], 'users_results');
 
             expect(affectedRows).toBe(0);
 
             // Verify no users were changed
             const allUsers = await db
-                .selectFrom('users')
+                .selectFrom('users_results')
                 .selectAll()
                 .execute();
 
@@ -128,7 +128,7 @@ describe('PgRulesEngine', () => {
         });
 
         it('should return 0 when given an empty rules array', async () => {
-            const affectedRows = await rulesEngine.applyRules([], 'users');
+            const affectedRows = await rulesEngine.applyRules([], 'users_results');
 
             expect(affectedRows).toBe(0);
         });
@@ -147,19 +147,19 @@ describe('PgRulesEngine', () => {
                 },
             ]);
 
-            const affectedRows = await rulesEngine.applyRules(rules, 'users');
+            const affectedRows = await rulesEngine.applyRules(rules, 'users_results');
 
             expect(affectedRows).toBe(1); // Only the valid rule should be applied
 
             // Verify only Jane was updated
             const john = await db
-                .selectFrom('users')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('email', '=', 'john@example.com')
                 .executeTakeFirst();
 
             const jane = await db
-                .selectFrom('users')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('email', '=', 'jane@example.com')
                 .executeTakeFirst();
@@ -178,13 +178,13 @@ describe('PgRulesEngine', () => {
                 }
             });
 
-            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+            const affectedRows = await rulesEngine.applyRules([rule], 'users_results');
 
             expect(affectedRows).toBe(1);
 
             // Verify both fields were updated
             const updatedUser = await db
-                .selectFrom('users')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('email', '=', 'alice.updated@example.com')
                 .executeTakeFirst();
@@ -220,9 +220,9 @@ describe('PgRulesEngine', () => {
                     priority: 1
                 },
             ]);
-            await rulesEngine.applyRules(rules, 'users');
+            await rulesEngine.applyRules(rules, 'users_results');
             const updatedUser = await db
-                .selectFrom('users')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('email', '=', 'jane@example.com')
                 .executeTakeFirst();
@@ -243,9 +243,9 @@ describe('PgRulesEngine', () => {
                     priority: 1
                 },
             ]);
-            await rulesEngine.applyRules(rules, 'users');
+            await rulesEngine.applyRules(rules, 'users_results');
             const updatedUser = await db
-                .selectFrom('users')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('email', '=', 'bob@example.com')
                 .executeTakeFirst();
@@ -254,10 +254,6 @@ describe('PgRulesEngine', () => {
     });
 
     describe('appliedRulesField functionality', () => {
-        beforeEach(async () => {
-            // Set up appliedRulesField for these tests
-            rulesEngine.setAppliedRulesField('appliedRules');
-        });
 
         it('should track applied rules when appliedRulesField is configured', async () => {
             const rule = MatchRuleFactory.create({
@@ -266,14 +262,14 @@ describe('PgRulesEngine', () => {
                 apply: {name: 'John Tracked'}
             });
 
-            await rulesEngine.applyRules([rule], 'users');
+            await rulesEngine.applyRules([rule], 'users_results');
 
             // Verify the rule was applied and tracked
-            const users = await rulesEngine.getRowsWithAppliedRules<User>('users', {email: 'john@example.com'});
+            const users = await rulesEngine.getRowsWithAppliedRules<User>('users_results', {email: 'john@example.com'});
 
             expect(users).toHaveLength(1);
             expect(users[0].name).toBe('John Tracked');
-            expect(users[0].appliedRules).toEqual(['track-rule']);
+            expect(users[0].applied_rules).toEqual(['track-rule']);
         });
 
         it('should track multiple rules applied to the same row', async () => {
@@ -291,24 +287,24 @@ describe('PgRulesEngine', () => {
             ]);
 
             // Apply first rule
-            await rulesEngine.applyRules([rules[0]], 'users');
+            await rulesEngine.applyRules([rules[0]], 'users_results');
 
             // Apply second rule
-            await rulesEngine.applyRules([rules[1]], 'users');
+            await rulesEngine.applyRules([rules[1]], 'users_results');
 
-            const users = await rulesEngine.getRowsWithAppliedRules<User>('users', {email: 'jane@example.com'});
+            const users = await rulesEngine.getRowsWithAppliedRules<User>('users_results', {email: 'jane@example.com'});
 
             expect(users).toHaveLength(1);
             expect(users[0].name).toBe('Jane Second');
-            expect(users[0].appliedRules).toEqual(['first-rule', 'second-rule']);
+            expect(users[0].applied_rules).toEqual(['first-rule', 'second-rule']);
         });
 
         it('should handle rows with no applied rules', async () => {
-            const users = await rulesEngine.getRowsWithAppliedRules<User>('users', {email: 'bob@example.com'});
+            const users = await rulesEngine.getRowsWithAppliedRules<User>('users_results', {email: 'bob@example.com'});
 
             expect(users).toHaveLength(1);
             expect(users[0].name).toBe('Bob Johnson'); // Original name
-            expect(users[0].appliedRules).toEqual([]);
+            expect(users[0].applied_rules).toEqual([]);
         });
 
         it('should clear applied rules for specific conditions', async () => {
@@ -319,19 +315,19 @@ describe('PgRulesEngine', () => {
                 apply: {name: 'Alice Modified'}
             });
 
-            await rulesEngine.applyRules([rule], 'users');
+            await rulesEngine.applyRules([rule], 'users_results');
 
             // Verify rule was tracked
-            let users = await rulesEngine.getRowsWithAppliedRules<User>('users', {email: 'alice@example.com'});
-            expect(users[0].appliedRules).toEqual(['clear-test-rule']);
+            let users = await rulesEngine.getRowsWithAppliedRules<User>('users_results', {email: 'alice@example.com'});
+            expect(users[0].applied_rules).toEqual(['clear-test-rule']);
 
             // Clear applied rules for Alice
-            const clearedRows = await rulesEngine.clearAppliedRules('users', {email: 'alice@example.com'});
+            const clearedRows = await rulesEngine.clearAppliedRules('users_results', {email: 'alice@example.com'});
             expect(clearedRows).toBe(1);
 
             // Verify applied rules were cleared
-            users = await rulesEngine.getRowsWithAppliedRules<User>('users', {email: 'alice@example.com'});
-            expect(users[0].appliedRules).toEqual([]);
+            users = await rulesEngine.getRowsWithAppliedRules<User>('users_results', {email: 'alice@example.com'});
+            expect(users[0].applied_rules).toEqual([]);
         });
 
         it('should clear applied rules for all rows when no conditions provided', async () => {
@@ -349,36 +345,20 @@ describe('PgRulesEngine', () => {
                 }
             ]);
 
-            await rulesEngine.applyRules(rules, 'users');
+            await rulesEngine.applyRules(rules, 'users_results');
 
             // Verify rules were tracked
-            let allUsers = await rulesEngine.getRowsWithAppliedRules('users');
-            const trackedUsers = allUsers.filter(u => u.appliedRules && u.appliedRules.length > 0);
+            let allUsers = await rulesEngine.getRowsWithAppliedRules('users_results');
+            const trackedUsers = allUsers.filter(u => u.applied_rules && u.applied_rules.length > 0);
             expect(trackedUsers).toHaveLength(2);
 
             // Clear all applied rules
-            const clearedRows = await rulesEngine.clearAppliedRules('users');
+            const clearedRows = await rulesEngine.clearAppliedRules('users_results');
             expect(clearedRows).toBe(4); // All 4 users should be updated
 
             // Verify all applied rules were cleared
-            allUsers = await rulesEngine.getRowsWithAppliedRules('users');
-            expect(allUsers.every(u => u.appliedRules?.length === 0)).toBe(true);
-        });
-
-        it('should throw error when getRowsWithAppliedRules called without configuring appliedRulesField', async () => {
-            const engineWithoutField = new RulesExecutionService(db);
-
-            await expect(engineWithoutField.getRowsWithAppliedRules('users')).rejects.toThrow(
-                'appliedRulesField is not configured. Use setAppliedRulesField() first.'
-            );
-        });
-
-        it('should throw error when clearAppliedRules called without configuring appliedRulesField', async () => {
-            const engineWithoutField = new RulesExecutionService(db);
-
-            await expect(engineWithoutField.clearAppliedRules('users')).rejects.toThrow(
-                'appliedRulesField is not configured. Use setAppliedRulesField() first.'
-            );
+            allUsers = await rulesEngine.getRowsWithAppliedRules('users_results');
+            expect(allUsers.every(u => u.applied_rules?.length === 0)).toBe(true);
         });
 
         it('should filter rows correctly with WHERE conditions in getRowsWithAppliedRules', async () => {
@@ -396,19 +376,19 @@ describe('PgRulesEngine', () => {
                 }
             ]);
 
-            await rulesEngine.applyRules(rules, 'users');
+            await rulesEngine.applyRules(rules, 'users_results');
 
             // Get only John's data
-            const johnUsers = await rulesEngine.getRowsWithAppliedRules('users', {email: 'john@example.com'});
+            const johnUsers = await rulesEngine.getRowsWithAppliedRules('users_results', {email: 'john@example.com'});
             expect(johnUsers).toHaveLength(1);
             expect(johnUsers[0].email).toBe('john@example.com');
-            expect(johnUsers[0].appliedRules).toEqual(['filter-rule-1']);
+            expect(johnUsers[0].applied_rules).toEqual(['filter-rule-1']);
 
             // Get only Jane's data
-            const janeUsers = await rulesEngine.getRowsWithAppliedRules('users', {email: 'jane@example.com'});
+            const janeUsers = await rulesEngine.getRowsWithAppliedRules('users_results', {email: 'jane@example.com'});
             expect(janeUsers).toHaveLength(1);
             expect(janeUsers[0].email).toBe('jane@example.com');
-            expect(janeUsers[0].appliedRules).toEqual(['filter-rule-2']);
+            expect(janeUsers[0].applied_rules).toEqual(['filter-rule-2']);
         });
 
         it('should work correctly when appliedRulesField is changed between operations', async () => {
@@ -419,14 +399,11 @@ describe('PgRulesEngine', () => {
                 apply: {name: 'Bob Field Test'}
             });
 
-            await rulesEngine.applyRules([rule1], 'users');
+            await rulesEngine.applyRules([rule1], 'users_results');
 
             // Verify tracking with first field
-            let users = await rulesEngine.getRowsWithAppliedRules('users', {email: 'bob@example.com'});
-            expect(users[0].appliedRules).toEqual(['field-test-1']);
-
-            // Change the field name and apply another rule
-            rulesEngine.setAppliedRulesField('appliedRules'); // Same field name for this test
+            let users = await rulesEngine.getRowsWithAppliedRules('users_results', {email: 'bob@example.com'});
+            expect(users[0].applied_rules).toEqual(['field-test-1']);
 
             const rule2 = MatchRuleFactory.create({
                 ruleName: 'field-test-2',
@@ -434,11 +411,11 @@ describe('PgRulesEngine', () => {
                 apply: {name: 'Bob Field Test 2'}
             });
 
-            await rulesEngine.applyRules([rule2], 'users');
+            await rulesEngine.applyRules([rule2], 'users_results');
 
             // Verify both rules are tracked
-            users = await rulesEngine.getRowsWithAppliedRules('users', {email: 'bob@example.com'});
-            expect(users[0].appliedRules).toEqual(['field-test-1', 'field-test-2']);
+            users = await rulesEngine.getRowsWithAppliedRules('users_results', {email: 'bob@example.com'});
+            expect(users[0].applied_rules).toEqual(['field-test-1', 'field-test-2']);
         });
 
         it('should track rules in transaction correctly', async () => {
@@ -456,24 +433,19 @@ describe('PgRulesEngine', () => {
             ]);
 
             // Apply both rules in a single transaction
-            const affectedRows = await rulesEngine.applyRules(rules, 'users');
+            const affectedRows = await rulesEngine.applyRules(rules, 'users_results');
             expect(affectedRows).toBe(2);
 
             // Verify both rules were tracked
-            const johnUsers = await rulesEngine.getRowsWithAppliedRules('users', {email: 'john@example.com'});
-            const janeUsers = await rulesEngine.getRowsWithAppliedRules('users', {email: 'jane@example.com'});
+            const johnUsers = await rulesEngine.getRowsWithAppliedRules('users_results', {email: 'john@example.com'});
+            const janeUsers = await rulesEngine.getRowsWithAppliedRules('users_results', {email: 'jane@example.com'});
 
-            expect(johnUsers[0].appliedRules).toEqual(['transaction-rule-1']);
-            expect(janeUsers[0].appliedRules).toEqual(['transaction-rule-2']);
+            expect(johnUsers[0].applied_rules).toEqual(['transaction-rule-1']);
+            expect(janeUsers[0].applied_rules).toEqual(['transaction-rule-2']);
         });
     });
 
     describe('appliedRulesField configuration', () => {
-        it('should allow setting and changing appliedRulesField', () => {
-            expect(() => rulesEngine.setAppliedRulesField('customField')).not.toThrow();
-            expect(() => rulesEngine.setAppliedRulesField('  anotherField  ')).not.toThrow();
-        });
-
         it('should work without appliedRulesField configured', async () => {
             // Create engine without setting appliedRulesField
             const basicEngine = new RulesExecutionService(db);
@@ -484,12 +456,12 @@ describe('PgRulesEngine', () => {
                 apply: {name: 'Alice No Tracking'}
             });
 
-            const affectedRows = await basicEngine.applyRules([rule], 'users');
+            const affectedRows = await basicEngine.applyRules([rule], 'users_results');
             expect(affectedRows).toBe(1);
 
             // Verify the rule was applied but no tracking occurred
             const user = await db
-                .selectFrom('users')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('email', '=', 'alice@example.com')
                 .executeTakeFirst();
@@ -503,7 +475,7 @@ describe('PgRulesEngine', () => {
         beforeEach(async () => {
             // Insert additional test data with various categories and statuses
             await db
-                .insertInto('users')
+                .insertInto('users_results')
                 .values([
                     { email: 'user1@test.com', name: 'User One' },
                     { email: 'user2@test.com', name: 'User Two' },
@@ -514,9 +486,9 @@ describe('PgRulesEngine', () => {
 
         it('should match strings using regex patterns with OR operator', async () => {
             // Set different roles (role column already exists in User schema)
-            await db.updateTable('users').set({ role: 'admin' }).where('email', '=', 'user1@test.com').execute();
-            await db.updateTable('users').set({ role: 'moderator' }).where('email', '=', 'user2@test.com').execute();
-            await db.updateTable('users').set({ role: 'guest' }).where('email', '=', 'user3@test.com').execute();
+            await db.updateTable('users_results').set({ role: 'admin' }).where('email', '=', 'user1@test.com').execute();
+            await db.updateTable('users_results').set({ role: 'moderator' }).where('email', '=', 'user2@test.com').execute();
+            await db.updateTable('users_results').set({ role: 'guest' }).where('email', '=', 'user3@test.com').execute();
 
             const rule = MatchRuleFactory.createRules([
                 {
@@ -526,13 +498,13 @@ describe('PgRulesEngine', () => {
                 }
             ])[0];
 
-            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+            const affectedRows = await rulesEngine.applyRules([rule], 'users_results');
 
             expect(affectedRows).toBe(2); // Should match 2 users (admin and moderator)
 
             // Verify only the matching users were updated
             const updatedUsers = await db
-                .selectFrom('users')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('name', '=', 'Staff Member')
                 .execute();
@@ -551,12 +523,12 @@ describe('PgRulesEngine', () => {
                 }
             ])[0];
 
-            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+            const affectedRows = await rulesEngine.applyRules([rule], 'users_results');
 
             expect(affectedRows).toBe(1); // Should match exactly one user
 
             const updatedUser = await db
-                .selectFrom('users')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('email', '=', 'john@example.com')
                 .executeTakeFirst();
@@ -566,9 +538,9 @@ describe('PgRulesEngine', () => {
 
         it('should handle regex patterns with special characters', async () => {
             // Set various statuses
-            await db.updateTable('users').set({ status: 'active' }).where('email', '=', 'john@example.com').execute();
-            await db.updateTable('users').set({ status: 'inactive' }).where('email', '=', 'jane@example.com').execute();
-            await db.updateTable('users').set({ status: 'pending' }).where('email', '=', 'bob@example.com').execute();
+            await db.updateTable('users_results').set({ status: 'active' }).where('email', '=', 'john@example.com').execute();
+            await db.updateTable('users_results').set({ status: 'inactive' }).where('email', '=', 'jane@example.com').execute();
+            await db.updateTable('users_results').set({ status: 'pending' }).where('email', '=', 'bob@example.com').execute();
 
             const rule = MatchRuleFactory.createRules([
                 {
@@ -578,12 +550,12 @@ describe('PgRulesEngine', () => {
                 }
             ])[0];
 
-            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+            const affectedRows = await rulesEngine.applyRules([rule], 'users_results');
 
             expect(affectedRows).toBe(2); // Should match 2 users (active and pending)
 
             const updatedUsers = await db
-                .selectFrom('users')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('name', '=', 'Active or Pending User')
                 .execute();
@@ -594,9 +566,9 @@ describe('PgRulesEngine', () => {
 
         it('should handle case-sensitive regex matching', async () => {
             // Set roles with different cases
-            await db.updateTable('users').set({ role: 'Admin' }).where('email', '=', 'john@example.com').execute();
-            await db.updateTable('users').set({ role: 'admin' }).where('email', '=', 'jane@example.com').execute();
-            await db.updateTable('users').set({ role: 'ADMIN' }).where('email', '=', 'bob@example.com').execute();
+            await db.updateTable('users_results').set({ role: 'Admin' }).where('email', '=', 'john@example.com').execute();
+            await db.updateTable('users_results').set({ role: 'admin' }).where('email', '=', 'jane@example.com').execute();
+            await db.updateTable('users_results').set({ role: 'ADMIN' }).where('email', '=', 'bob@example.com').execute();
 
             const rule = MatchRuleFactory.createRules([
                 {
@@ -606,12 +578,12 @@ describe('PgRulesEngine', () => {
                 }
             ])[0];
 
-            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+            const affectedRows = await rulesEngine.applyRules([rule], 'users_results');
 
             expect(affectedRows).toBe(1); // Should match only one user (exact case)
 
             const updatedUser = await db
-                .selectFrom('users')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('name', '=', 'Exact Case Match')
                 .executeTakeFirst();
@@ -621,9 +593,9 @@ describe('PgRulesEngine', () => {
 
         it('should use direct equality for non-string values', async () => {
             // Set test data
-            await db.updateTable('users').set({ age: 25, isVerified: (isPostgres)? true : 1 }).where('email', '=', 'john@example.com').execute();
-            await db.updateTable('users').set({ age: 30, isVerified: (isPostgres)? false : 0 }).where('email', '=', 'jane@example.com').execute();
-            await db.updateTable('users').set({ age: 25, isVerified: (isPostgres)? true : 1 }).where('email', '=', 'bob@example.com').execute();
+            await db.updateTable('users_results').set({ age: 25, isVerified: (isPostgres)? true : 1 }).where('email', '=', 'john@example.com').execute();
+            await db.updateTable('users_results').set({ age: 30, isVerified: (isPostgres)? false : 0 }).where('email', '=', 'jane@example.com').execute();
+            await db.updateTable('users_results').set({ age: 25, isVerified: (isPostgres)? true : 1 }).where('email', '=', 'bob@example.com').execute();
 
             const rule = MatchRuleFactory.createRules([
                 {
@@ -636,12 +608,12 @@ describe('PgRulesEngine', () => {
                 }
             ])[0];
 
-            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+            const affectedRows = await rulesEngine.applyRules([rule], 'users_results');
 
             expect(affectedRows).toBe(2); // Should match 2 users with age=25 AND isVerified=true
 
             const updatedUsers = await db
-                .selectFrom('users')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('name', '=', 'Non-String Match')
                 .execute();
@@ -652,9 +624,9 @@ describe('PgRulesEngine', () => {
 
         it('should handle mixed string and non-string conditions', async () => {
             // Set test data using role (already exists) and priority
-            await db.updateTable('users').set({ role: 'admin', priority: 1 }).where('email', '=', 'john@example.com').execute();
-            await db.updateTable('users').set({ role: 'user', priority: 1 }).where('email', '=', 'jane@example.com').execute();
-            await db.updateTable('users').set({ role: 'admin', priority: 2 }).where('email', '=', 'bob@example.com').execute();
+            await db.updateTable('users_results').set({ role: 'admin', priority: 1 }).where('email', '=', 'john@example.com').execute();
+            await db.updateTable('users_results').set({ role: 'user', priority: 1 }).where('email', '=', 'jane@example.com').execute();
+            await db.updateTable('users_results').set({ role: 'admin', priority: 2 }).where('email', '=', 'bob@example.com').execute();
 
             const rule = MatchRuleFactory.createRules([
                 {
@@ -667,12 +639,12 @@ describe('PgRulesEngine', () => {
                 }
             ])[0];
 
-            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+            const affectedRows = await rulesEngine.applyRules([rule], 'users_results');
 
             expect(affectedRows).toBe(2); // Should match users with (admin OR user) AND priority=1
 
             const updatedUsers = await db
-                .selectFrom('users')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('name', '=', 'Mixed Conditions Match')
                 .execute();
@@ -691,13 +663,13 @@ describe('PgRulesEngine', () => {
                 }
             ])[0];
 
-            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+            const affectedRows = await rulesEngine.applyRules([rule], 'users_results');
 
             expect(affectedRows).toBe(0);
 
             // Verify no users were updated
             const updatedUsers = await db
-                .selectFrom('users')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('name', '=', 'Should Not Match')
                 .execute();
@@ -715,12 +687,12 @@ describe('PgRulesEngine', () => {
                 }
             ])[0];
 
-            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+            const affectedRows = await rulesEngine.applyRules([rule], 'users_results');
 
             expect(affectedRows).toBe(1);
 
             const updatedUser = await db
-                .selectFrom('users')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('email', '=', 'john@example.com')
                 .executeTakeFirst();
@@ -730,10 +702,10 @@ describe('PgRulesEngine', () => {
 
         it('should handle complex regex patterns', async () => {
             // Set phone numbers
-            await db.updateTable('users').set({ phone: '+1-555-123-4567' }).where('email', '=', 'john@example.com').execute();
-            await db.updateTable('users').set({ phone: '555.123.4568' }).where('email', '=', 'jane@example.com').execute();
-            await db.updateTable('users').set({ phone: '(555) 123-4569' }).where('email', '=', 'bob@example.com').execute();
-            await db.updateTable('users').set({ phone: '5551234570' }).where('email', '=', 'alice@example.com').execute();
+            await db.updateTable('users_results').set({ phone: '+1-555-123-4567' }).where('email', '=', 'john@example.com').execute();
+            await db.updateTable('users_results').set({ phone: '555.123.4568' }).where('email', '=', 'jane@example.com').execute();
+            await db.updateTable('users_results').set({ phone: '(555) 123-4569' }).where('email', '=', 'bob@example.com').execute();
+            await db.updateTable('users_results').set({ phone: '5551234570' }).where('email', '=', 'alice@example.com').execute();
 
             const rule = MatchRuleFactory.createRules([
                 {
@@ -743,12 +715,12 @@ describe('PgRulesEngine', () => {
                 }
             ])[0];
 
-            const affectedRows = await rulesEngine.applyRules([rule], 'users');
+            const affectedRows = await rulesEngine.applyRules([rule], 'users_results');
 
             expect(affectedRows).toBe(4); // Should match all phone numbers containing 555 and 123
 
             const updatedUsers = await db
-                .selectFrom('users')
+                .selectFrom('users_results')
                 .selectAll()
                 .where('name', '=', 'Phone Pattern Match')
                 .execute();
