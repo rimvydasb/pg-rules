@@ -89,7 +89,7 @@ async function createSchema(db: Kysely<Database>): Promise<void> {
 
         if (usersTable === 'users_results') {
             // must be empty array as default. I know that in Postgres it is set as []::jsonb or smth like that
-            const defaultBuilder = usePg ? sql`'[]'::jsonb` : sql`json_array()`;
+            const defaultBuilder = usePg ? sql`'[]'::jsonb` : sql`'[]'`;
             await baseSchema
                 .addColumn('applied_rules', usePg ? 'jsonb' : 'json', col => col.defaultTo(defaultBuilder))
                 .execute();

@@ -10,7 +10,7 @@ export class RulesExecutionService {
 
     /**
      * Additional field name in the target table to track applied rules.
-     * For example, appliedRulesField can be set to "appliedRules TEXT[]", then applied rule
+     * For example, appliedRulesField can be set to "applied_rules TEXT[]", then applied rule
      * will be added to the JSON array in this field. Specified "appliedRules TEXT[]" must be a PostgreSQL TEXT array type.
      *
      * @private
@@ -241,10 +241,12 @@ export class RulesExecutionService {
         // Parse the applied rules JSON array for each row
         return rows.map(row => {
             const appliedRulesValue = (row as any)[this.appliedRulesField!];
+            const parsedAppliedRules = this.normalizeAppliedRules(appliedRulesValue);
             return {
                 ...row,
-                appliedRules: this.normalizeAppliedRules(appliedRulesValue),
-            } as T & { appliedRules?: string[] };
+                [this.appliedRulesField!]: parsedAppliedRules,
+                appliedRules: parsedAppliedRules,
+            } as any;
         });
     }
 }
